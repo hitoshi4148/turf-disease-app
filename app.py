@@ -33,8 +33,10 @@ uploaded_file = st.file_uploader("病害画像をアップロードしてくだ�
 import base64
 
 if uploaded_file:
-    # 画像表示のためにbase64変換（縦横50％表示）
-    img_bytes = uploaded_file.read()
+
+    # img_bytes = uploaded_file.read()
+    # OK（getvalueは複数回使ってもOK）
+    img_bytes = uploaded_file.getvalue()
     img_base64 = base64.b64encode(img_bytes).decode("utf-8")
 
     st.markdown(
