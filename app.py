@@ -60,7 +60,17 @@ if uploaded_file:
 
     target_labels = get_labels_by_turf_type(turf_type)
     target_indices = [labels.index(lbl) for lbl in target_labels]
-    results = [(lbl, output[labels.index(lbl)]) for lbl in target_labels]
+    # results = [(lbl, output[labels.index(lbl)]) for lbl in target_labels]
+    # results.sort(key=lambda x: x[1], reverse=True)
+
+    # 出力のスコアから対象病害のみ抽出
+    raw_scores = [(lbl, output[labels.index(lbl)]) for lbl in target_labels]
+
+    # 合計で100％になるように再スケーリング
+    total = sum(score for _, score in raw_scores)
+    results = [(lbl, score / total) for lbl, score in raw_scores] if total > 0 else raw_scores
+
+    # 降順でソート
     results.sort(key=lambda x: x[1], reverse=True)
 
     st.subheader("分類結果")
