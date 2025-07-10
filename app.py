@@ -53,7 +53,5 @@ if uploaded_file:
 
     st.subheader("分類結果")
     for lbl, score in results:
-        st.markdown(
-            f"<div style='font-size:1.3em; font-weight:bold; margin-bottom:0.3em'>{lbl}: <span style='color:#0072B5'>{score*100:.2f}%</span></div>",
-            unsafe_allow_html=True
-        )
+
+        st.markdown(f"<div style='font-size:20px; font-weight:bold'>{lbl}: {score * 100:.2f}%</div>", unsafe_allow_html=True)
