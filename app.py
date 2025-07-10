@@ -31,7 +31,7 @@ turf_type = st.radio("芝の種類を選んでください", ["warm", "cool"], f
 uploaded_file = st.file_uploader("病害画像をアップロードしてください", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
-    st.image(uploaded_file, caption="アップロードされた画像", use_column_width=True)
+    st.image(uploaded_file, caption="アップロードされた画像", use_container_width=True)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
         tmp.write(uploaded_file.read())
@@ -53,4 +53,7 @@ if uploaded_file:
 
     st.subheader("分類結果")
     for lbl, score in results:
-        st.write(f"{lbl}: {score * 100:.2f}%")
+        st.markdown(
+            f"<div style='font-size:1.3em; font-weight:bold; margin-bottom:0.3em'>{lbl}: <span style='color:#0072B5'>{score*100:.2f}%</span></div>",
+            unsafe_allow_html=True
+        )
