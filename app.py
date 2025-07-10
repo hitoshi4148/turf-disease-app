@@ -30,8 +30,18 @@ st.title("芝生の病害分類AI（ONNX版）")
 turf_type = st.radio("芝の種類を選んでください", ["warm", "cool"], format_func=lambda x: "暖地型" if x == "warm" else "寒地型")
 uploaded_file = st.file_uploader("病害画像をアップロードしてください", type=["jpg", "jpeg", "png"])
 
+import base64
+
 if uploaded_file:
-    st.image(uploaded_file, caption="アップロードされた画像", use_container_width=True)
+    # 画像表示のためにbase64変換（縦横50％表示）
+    img_bytes = uploaded_file.read()
+    img_base64 = base64.b64encode(img_bytes).decode("utf-8")
+
+    st.markdown(
+        f"<img src='data:image/jpeg;base64,{img_base64}' "
+        f"style='width:50%; height:auto; display:block; margin:auto;'/>",
+        unsafe_allow_html=True
+    )
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
         tmp.write(uploaded_file.read())
