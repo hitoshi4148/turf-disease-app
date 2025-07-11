@@ -7,7 +7,7 @@ import json
 import os
 
 # モデルとラベルの読み込み
-model = tf.keras.models.load_model("model.h5")
+model = ort.InferenceSession("model.onnx")
 with open("turf_labels.json") as f:
     labels = json.load(f)
 
