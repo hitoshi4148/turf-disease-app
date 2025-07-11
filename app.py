@@ -6,6 +6,50 @@ import tempfile
 import json
 import os
 
+# ページ設定
+st.set_page_config(
+    page_title="芝生病害分類AI - グリーンキーパー向け診断ツール",
+    page_icon="",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# HTMLヘッダーにメタタグを追加
+st.markdown("""
+<head>
+    <meta name="description" content="芝生の病害をAIで自動診断。暖地型・寒地型芝に対応した専門的な病害分類ツール。ダラースポット、ブラウンパッチ、雪腐病など9種類の病害を高精度で識別。">
+    <meta name="keywords" content="芝生,病害,分類,AI,診断,グリーンキーパー,ダラースポット,ブラウンパッチ,雪腐病,暖地型,寒地型">
+    <meta name="author" content="Growth and Progress">
+    <meta property="og:title" content="芝生病害分類AI - グリーンキーパー向け診断ツール">
+    <meta property="og:description" content="芝生の病害をAIで自動診断。専門的な病害分類ツール。">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+</head>
+""", unsafe_allow_html=True)
+
+# 構造化データを追加
+st.markdown("""
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "芝生病害分類AI",
+    "description": "芝生の病害をAIで自動診断する専門ツール",
+    "applicationCategory": "農業・園芸アプリ",
+    "operatingSystem": "Web",
+    "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "JPY"
+    },
+    "author": {
+        "@type": "Organization",
+        "name": "Growth and Progress"
+    }
+}
+</script>
+""", unsafe_allow_html=True)
+
 # モデルとラベルの読み込み
 model = ort.InferenceSession("model.onnx")
 with open("turf_labels.json") as f:
@@ -41,8 +85,8 @@ session = ort.InferenceSession("model.onnx", providers=["CPUExecutionProvider"])
 input_name = session.get_inputs()[0].name
 
 # UI
-st.markdown("<h2 style='text-align: center;'>グリーンキーパーのための芝生病害分類AI</h2>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>ver.0.1 試験運用中</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>芝生病害分類AI</h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; font-size: 1.2em;'>グリーンキーパーのための専門診断ツール</h2>", unsafe_allow_html=True)
 turf_type = st.radio("芝の種類を選んでください", ["warm", "cool"], format_func=lambda x: "暖地型" if x == "warm" else "寒地型")
 uploaded_file = st.file_uploader("病害画像をアップロードしてください", type=["jpg", "jpeg", "png"])
 
@@ -57,6 +101,7 @@ if uploaded_file:
 
     st.markdown(
         f"<img src='data:image/jpeg;base64,{img_base64}' "
+        f"alt='芝生病害診断用画像' "
         f"style='width:50%; height:auto; display:block; margin:auto;'/>",
         unsafe_allow_html=True
     )
