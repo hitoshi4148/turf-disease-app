@@ -6,10 +6,25 @@ import tempfile
 import json
 import os
 
-# ラベル読み込み
+# モデルとラベルの読み込み
+model = tf.keras.models.load_model("model.h5")
 with open("turf_labels.json") as f:
     labels = json.load(f)
 
+# 病害名の日本語対応辞書
+disease_names_jp = {
+    "Dollarspot": "ダラースポット",
+    "FairyRing": "フェアリーリング",
+    "LargePatch": "ラージパッチ（葉腐病）",
+    "BrownPatch": "ブラウンパッチ",
+    "SnowMold": "雪腐病",
+    "PythiumBlight": "ピシウムブライト（赤焼病）",
+    "DrechsleraleafSpot": "ドレクスレラ葉枯病",
+    "RedThread": "レッドスレッド（赤葉腐病）",
+    "TakeAllPatch": "テイクオールパッチ（立枯病）"
+}
+
+# 芝タイプによる病害グループ
 type_both = ["Dollarspot", "FairyRing"]
 type_warm = ["LargePatch"]
 type_cool = ["BrownPatch", "SnowMold", "PythiumBlight", "DrechsleraleafSpot", "RedThread", "TakeAllPatch"]
@@ -77,7 +92,7 @@ if uploaded_file:
     st.subheader("分類結果")
     for lbl, score in results:
 
-        st.markdown(f"<div style='font-size:20px; font-weight:bold'>{lbl}: {score * 100:.2f}%</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:20px; font-weight:bold'>{disease_names_jp.get(lbl, lbl)}: {score * 100:.2f}%</div>", unsafe_allow_html=True)
 
 # フッター
 st.markdown("<hr>", unsafe_allow_html=True)
