@@ -27,6 +27,7 @@ input_name = session.get_inputs()[0].name
 
 # UI
 st.markdown("<h2 style='text-align: center;'>グリーンキーパーのための芝生病害分類AI</h2>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>ver.0.1 試験運用中</p>", unsafe_allow_html=True)
 turf_type = st.radio("芝の種類を選んでください", ["warm", "cool"], format_func=lambda x: "暖地型" if x == "warm" else "寒地型")
 uploaded_file = st.file_uploader("病害画像をアップロードしてください", type=["jpg", "jpeg", "png"])
 
@@ -77,3 +78,7 @@ if uploaded_file:
     for lbl, score in results:
 
         st.markdown(f"<div style='font-size:20px; font-weight:bold'>{lbl}: {score * 100:.2f}%</div>", unsafe_allow_html=True)
+
+# フッター
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: gray;'>©2025 Growth and Progress</p>", unsafe_allow_html=True)
