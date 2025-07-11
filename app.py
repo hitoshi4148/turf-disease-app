@@ -26,7 +26,7 @@ session = ort.InferenceSession("model.onnx", providers=["CPUExecutionProvider"])
 input_name = session.get_inputs()[0].name
 
 # UI
-st.title("グリーンキーパーのための芝生病害分類AI")
+st.markdown("<h2 style='text-align: center;'>グリーンキーパーのための芝生病害分類AI</h2>", unsafe_allow_html=True)
 turf_type = st.radio("芝の種類を選んでください", ["warm", "cool"], format_func=lambda x: "暖地型" if x == "warm" else "寒地型")
 uploaded_file = st.file_uploader("病害画像をアップロードしてください", type=["jpg", "jpeg", "png"])
 
