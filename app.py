@@ -8,7 +8,7 @@ import os
 
 # ページ設定
 st.set_page_config(
-    page_title="芝生病害分類AI - グリーンキーパー向け診断ツール",
+    page_title="グリーンキーパーのための芝生病害画像分類ＡＩツール",
     page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -85,10 +85,28 @@ session = ort.InferenceSession("model.onnx", providers=["CPUExecutionProvider"])
 input_name = session.get_inputs()[0].name
 
 # UI
-st.markdown("<h1 style='text-align: center;'>芝生病害分類AI</h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center; font-size: 1.2em;'>グリーンキーパーのための専門診断ツール ver 0.2</h2>", unsafe_allow_html=True)
-turf_type = st.radio("芝の種類を選んでください", ["warm", "cool"], format_func=lambda x: "暖地型" if x == "warm" else "寒地型")
-uploaded_file = st.file_uploader("病害画像をアップロードしてください", type=["jpg", "jpeg", "png"])
+st.markdown("<h1 style='text-align: center;'>芝生病害画像分類ＡＩ</h1>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; font-size: 1.2em;'>グリーンキーパーのための病害分類ベータ版 ver 0.9</h3>", unsafe_allow_html=True)
+st.markdown(
+    """
+    <div style='margin-bottom:-16px;'>
+        <span style='font-size:1.3em; font-weight:bold;'>芝の種類を選んでください</span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+turf_type = st.radio(
+    "",
+    ["warm", "cool"],
+    format_func=lambda x: "暖地型（日本芝・高麗芝・バミューダ芝等）" if x == "warm" else "寒地型（ベント・ライグラス・フェスク・ケンタッキーブルーグラス等）"
+)
+
+st.markdown("<span style='font-size:1.3em; font-weight:bold;'>病斑部だけの病害画像をアップロードしてください</span>", unsafe_allow_html=True)
+st.markdown("<div style='margin-bottom: 14px;'></div>", unsafe_allow_html=True)
+st.image("photo.png", caption="※撮影時の注意")
+
+
+uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"])
 
 import base64
 
