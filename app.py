@@ -162,7 +162,7 @@ st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray;'>©2025 Growth and Progress</p>", unsafe_allow_html=True)
 st.markdown("""
 <div style='text-align: center; color: #888; font-size: 0.9em;'>
-<a href='https://hitoshiyoshinobu.wixsite.com/website' target='_blank' style='color: #888; text-decoration: underline;'>グロウアンドプログレス（ホームページ）</a> ｜
+<a href='https://hitoshiyoshinobu.wixsite.com/website' target='_blank' style='color: #888; text-decoration: underline;'>グロウアンドプログレス</a> ｜
 <a href='https://turfmap.onrender.com/' target='_blank' style='color: #888; text-decoration: underline;'>グリーンキーパーのための積算温度追跡マップ</a>
 </div>
 """, unsafe_allow_html=True)
