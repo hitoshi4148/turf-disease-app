@@ -1,0 +1,14 @@
+{
+  "class_names": [
+    "anthracnose_decline",
+    "brown_patch",
+    "dollar_spot",
+    "fairy_ring",
+    "large_patch",
+    "leaf_spot",
+    "pythium",
+    "red_thread",
+    "snow_mold",
+    "take_all_patch"
+  ]
+}

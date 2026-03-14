@@ -1,0 +1,28 @@
+# Python virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Test / type-check cache
+.pytest_cache/
+.mypy_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE metadata
+.vscode/
+.cursor/
+
+# Local/runtime artifacts
+*.log
+
+# Optional datasets (巨大データの誤コミット防止)
+data_raw/
+data_processed/
+data_two_stage/
