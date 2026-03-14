@@ -17,8 +17,7 @@ st.set_page_config(
 # ======================
 # 設定
 # ======================
-STAGE1_MODEL_PATH = "models/stage1_binary_model.pth"
-STAGE2_MODEL_PATH = "models/stage2_disease_model.pth"
+MODEL_PATH = "models/disease_resnet18_best.pth"
 CLASS_NAMES_PATH = "class_names.json"
 DISEASE_INFO_PATH = "disease_info.json"
 BANNER_IMAGE_PATH = r"C:\Users\hitos\.cursor\projects\c-Users-hitos-disease-classification\assets\c__Users_hitos_AppData_Roaming_Cursor_User_workspaceStorage_06f2bd11c3ead2a302f748a2d89a9f59_images_banner_ad_recruitment_728x90-30f0f326-eb56-4988-892f-cad746e7e45b.png"
@@ -56,25 +55,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def validate_required_files():
     missing = []
-    if not os.path.exists(CLASS_NAMES_PATH):
-        missing.append(CLASS_NAMES_PATH)
-    if not os.path.exists(STAGE1_MODEL_PATH):
-        missing.append(STAGE1_MODEL_PATH)
-    if not os.path.exists(STAGE2_MODEL_PATH):
-        missing.append(STAGE2_MODEL_PATH)
+    if not os.path.exists(MODEL_PATH):
+        missing.append(MODEL_PATH)
 
     if missing:
         st.error("推論に必要なファイルが不足しています。")
-        if CLASS_NAMES_PATH in missing:
-            st.error("`class_names.json` が見つかりません。`train_stage2.py` 実行後に生成されることを確認してください。")
-        model_missing = [p for p in [STAGE1_MODEL_PATH, STAGE2_MODEL_PATH] if p in missing]
-        if model_missing:
-            st.warning("Stage1/Stage2 モデルが未配置です。以下を確認してください。")
-            for path in model_missing:
-                st.write(f"- 未検出: `{path}`")
-            st.write("- `python train_stage1.py` で Stage1 モデルを作成")
-            st.write("- `python train_stage2.py` で Stage2 モデルを作成")
-            st.write("- 生成先が `models/` 配下になっているか確認")
+        for path in missing:
+            st.write(f"- 未検出: `{path}`")
+        st.write("- `python train.py` で単一モデルを再学習")
+        st.write("- 学習後のモデルファイルを `models/` 配下に配置")
         st.stop()
 
 
@@ -83,22 +72,36 @@ def validate_required_files():
 # ======================
 @st.cache_data
 def load_class_names():
+    if not os.path.exists(CLASS_NAMES_PATH):
+        return []
     with open(CLASS_NAMES_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["class_names"]
+        return json.load(f).get("class_names", [])
 
 
 @st.cache_resource
-def load_stage_model(model_path, num_classes):
-    checkpoint = torch.load(model_path, map_location=device)
+def load_model():
+    checkpoint = torch.load(MODEL_PATH, map_location=device)
+    if isinstance(checkpoint, dict):
+        state_dict = checkpoint.get("model_state_dict", checkpoint)
+        loaded_class_names = checkpoint.get("class_names", [])
+    else:
+        state_dict = checkpoint
+        loaded_class_names = []
+
+    if not loaded_class_names:
+        loaded_class_names = load_class_names()
+    if not loaded_class_names:
+        raise RuntimeError("class_names がモデルにも class_names.json にも存在しません。")
+
     model = models.efficientnet_v2_s(weights=None)
     model.classifier[1] = nn.Linear(
         model.classifier[1].in_features,
-        num_classes
+        len(loaded_class_names)
     )
-    model.load_state_dict(checkpoint["model_state_dict"])
+    model.load_state_dict(state_dict)
     model.to(device)
     model.eval()
-    return model, checkpoint.get("class_names", [])
+    return model, loaded_class_names
 
 
 class_names = []
@@ -263,80 +266,56 @@ if diagnose_button:
     else:
         validate_required_files()
         try:
-            stage2_class_names = load_class_names()
-            stage1_model, stage1_class_names = load_stage_model(STAGE1_MODEL_PATH, 2)
-            stage2_model, _ = load_stage_model(STAGE2_MODEL_PATH, len(stage2_class_names))
-            class_names = stage2_class_names
+            model, class_names = load_model()
         except RuntimeError as e:
             st.error("モデルの読み込みに失敗しました。学習時と推論時のモデル構造・クラス順が一致しているか確認してください。")
             st.code(str(e))
-            st.write("- `train_stage1.py` / `train_stage2.py` 実行後の最新モデルを使用")
-            st.write("- `class_names.json` が Stage2 学習時の内容と一致")
+            st.write("- `train.py` 実行後の最新モデルを使用")
+            st.write("- モデル内 `class_names` と `class_names.json` の整合を確認")
             st.stop()
 
         image = patch_image
         input_tensor = transform(image).unsqueeze(0).to(device)
-        patch_pil = image
-        patch_tensor = input_tensor
 
         with torch.no_grad():
-            # Step1: healthy vs disease
-            stage1_outputs = stage1_model(patch_tensor)
-            stage1_probs = torch.softmax(stage1_outputs, dim=1)
-            stage1_pred_idx = torch.argmax(stage1_probs, dim=1).item()
-            stage1_pred_class = stage1_class_names[stage1_pred_idx] if stage1_class_names else "disease"
+            outputs = model(input_tensor)
+            base_probs = torch.softmax(outputs, dim=1)
+            final_probs = base_probs.clone()
 
-            if stage1_pred_class == "healthy":
-                pred_class = "healthy"
-                confidence = stage1_probs[0][stage1_pred_idx].item()
-                probs = stage1_probs
-                top_k = min(10, probs.size(1))
-                top3_prob, top3_idx = torch.topk(probs, top_k)
-                top3_classes = [
-                    stage1_class_names[top3_idx[0][rank].item()]
-                    for rank in range(top_k)
-                ]
-                adjusted_probs = np.zeros(len(class_names), dtype=np.float32)
-            else:
-                # Step2: disease 詳細分類
-                patch_outputs = stage2_model(patch_tensor)
-                patch_probs = torch.softmax(patch_outputs, dim=1)
-                final_probs = patch_probs
+            excluded_diseases = set()
+            if turf_type == "寒地型芝":
+                excluded_diseases = WARM_SEASON_DISEASES - COOL_SEASON_DISEASES
+            elif turf_type == "暖地型芝":
+                excluded_diseases = COOL_SEASON_DISEASES - WARM_SEASON_DISEASES
 
-                excluded_diseases = set()
-                if turf_type == "寒地型芝":
-                    excluded_diseases = WARM_SEASON_DISEASES - COOL_SEASON_DISEASES
-                elif turf_type == "暖地型芝":
-                    excluded_diseases = COOL_SEASON_DISEASES - WARM_SEASON_DISEASES
+            for idx, cls in enumerate(class_names):
+                if cls in excluded_diseases:
+                    final_probs[0, idx] *= 0.2
 
-                for idx, cls in enumerate(class_names):
-                    if cls in excluded_diseases:
-                        final_probs[0, idx] *= 0.2
+            prob_sum = final_probs.sum(dim=1, keepdim=True)
+            final_probs = final_probs / prob_sum.clamp(min=1e-12)
 
-                prob_sum = final_probs.sum(dim=1, keepdim=True)
-                final_probs = final_probs / prob_sum.clamp(min=1e-12)
+            final_probs_np = final_probs.squeeze(0).cpu().numpy()
+            adjusted_probs = adjust_probabilities(
+                final_probs_np,
+                class_names,
+                turf_type,
+                symptom_patch,
+                symptom_thread,
+                symptom_water,
+                symptom_ring
+            )
 
-                final_probs_np = final_probs.squeeze(0).cpu().numpy()
-                adjusted_probs = adjust_probabilities(
-                    final_probs_np,
-                    class_names,
-                    turf_type,
-                    symptom_patch,
-                    symptom_thread,
-                    symptom_water,
-                    symptom_ring
-                )
-
-                probs = torch.tensor(adjusted_probs, dtype=torch.float32).unsqueeze(0)
-                pred_idx = torch.argmax(probs, dim=1).item()
-                pred_class = class_names[pred_idx]
-                confidence = probs[0][pred_idx].item()
-                top_k = min(10, probs.size(1))
-                top3_prob, top3_idx = torch.topk(probs, top_k)
-                top3_classes = [
-                    class_names[top3_idx[0][rank].item()]
-                    for rank in range(top_k)
-                ]
+            probs = torch.tensor(adjusted_probs, dtype=torch.float32).unsqueeze(0)
+            pred_idx = torch.argmax(probs, dim=1).item()
+            pred_class = class_names[pred_idx]
+            confidence = probs[0][pred_idx].item()
+            top_k = min(10, probs.size(1))
+            top3_prob, top3_idx = torch.topk(probs, top_k)
+            top3_classes = [
+                class_names[top3_idx[0][rank].item()]
+                for rank in range(top_k)
+            ]
 
         probability_map = {class_name: float(adjusted_probs[i] * 100) for i, class_name in enumerate(class_names)}
         display_probabilities = {
@@ -411,7 +390,7 @@ st.markdown(
     <div style="font-size:0.85rem; color:#666; line-height:1.5; margin-top:0.5rem;">
     本アプリは意思決定支援ツールです。最終判断は現場状況と専門家確認を推奨します。<br>
     - 撮影条件やデータ分布により診断精度は変動します。<br>
-    - 推論モデルには EfficientNetV2-S（Two-Stage分類）を使用しています。
+    - 推論モデルには学習済み単一分類モデルを使用しています。
     </div>
     """,
     unsafe_allow_html=True

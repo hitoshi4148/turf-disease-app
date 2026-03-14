@@ -7,9 +7,9 @@
 
 ## v0.92 → v1.0.0 アップデート要点
 
-- これまでの病害分類AIから、**健全/病害の判定を含む2段階診断**へ拡張
+- これまでの病害分類AIから、**公開運用を優先した単一モデル診断**へ最適化
 - 学習データを大幅に増やし、モデル自体の学習品質を改善
-- 推論モデルを最新構成（EfficientNetV2-SのTwo-Stage）へ更新
+- 推論モデルを最新構成（EfficientNetV2-S）へ更新
 - 芝種選択・症状特徴チェックによる重み付けで、病害分類精度の安定化を強化
 
 ---
@@ -18,14 +18,14 @@
 
 本プロジェクトは、最終的な病害判定までを次の 3 段階で行います。
 
-1. **Stage1: 健全芝 / 病害芝の2値判定**  
-   まず入力画像が healthy か disease かを判定します。
+1. **AI分類（単一モデル）**  
+   入力画像を EfficientNetV2-S で分類し、クラス確率を算出します。
 
-2. **Stage2: 病害の詳細分類**  
-   Stage1 が disease のときだけ、10 病害クラスの詳細分類を実行します。
+2. **芝種ベース補正（暖地型 / 寒地型）**  
+   発生しづらい病害クラスの確率を抑制します。
 
 3. **知識ベース補正（芝種 + 症状チェック）**  
-   - 芝種（暖地型 / 寒地型）に応じて、発生しづらい病害の確率を抑制
+   - 芝種（暖地型 / 寒地型）情報で最終確率を安定化
    - 症状チェック（円形パッチ、赤い糸、水浸状、リング状）に応じて関連病害を加重
    - 最後に確率を再正規化して Top-N を表示
 
@@ -38,7 +38,7 @@
 - 画像アップロード（病斑画像）
 - 芝種選択（暖地型芝 / 寒地型芝）
 - 症状チェックによる補助入力
-- 2段階推論（Stage1 → Stage2）
+- 単一モデル推論（EfficientNetV2-S）
 - Top10 予測表示（確率バー付き）
 - 病害説明表示（症状 / 管理方法 / 推奨薬剤系統）
 - 参考画像表示（存在しない場合は案内表示）
@@ -47,11 +47,9 @@
 
 ## 推論モデル構成
 
-- **Stage1（二値分類）**: `EfficientNetV2-S`  
-  healthy / disease を判定
-- **Stage2（病害詳細分類）**: `EfficientNetV2-S`  
-  10病害クラスを分類
-- **推論フロー**: Two-Stage（Stage1 → Stage2）+ 芝種/症状による確率補正
+- **分類モデル**: `EfficientNetV2-S`
+- **推論フロー**: 単一モデル分類 + 芝種/症状による確率補正
+- **表示**: Top10 候補（確率バー）
 
 ---
 
@@ -83,64 +81,56 @@ pip install -U pip
 pip install torch torchvision streamlit scikit-learn tqdm pillow
 ```
 
-## 2) データ準備（Two-Stage）
+## 2) データ準備
 
 元データ（例）:
 
 ```text
 data_raw/
-  healthy/
+  anthracnose_decline/
   brown_patch/
+  dollar_spot/
+  fairy_ring/
+  healthy/
+  large_patch/
+  leaf_spot/
+  pythium/
+  red_thread/
+  snow_mold/
+  take_all_patch/
   ...
-```
-
-Two-Stage 用データ生成:
-
-```bash
-python prepare_two_stage_dataset.py
-```
-
-生成先:
-
-```text
-data_two_stage/
-  stage1_binary/
-    healthy/
-    disease/
-  stage2_disease/
-    anthracnose_decline/
-    ...
 ```
 
 ## 3) 学習
 
-Stage1 学習:
-
 ```bash
-python train_stage1.py
-```
-
-Stage2 学習:
-
-```bash
-python train_stage2.py
+python train.py
 ```
 
 出力（models）:
 
 ```text
-models/stage1_binary_model.pth
-models/stage2_disease_model.pth
+best_model.pth
 ```
+
+公開用配置（app.py 既定パス）:
+
+```text
+models/disease_resnet18_best.pth
+```
+
+`best_model.pth` を公開用に使う場合は、以下のいずれかで統一してください。
+
+- `best_model.pth` を `models/disease_resnet18_best.pth` にコピー（またはリネーム）
+- もしくは `app.py` の `MODEL_PATH` を `best_model.pth` に変更
 
 出力（クラス順）:
 
 ```text
-class_names_stage1.json
 class_names.json
 ```
 
-> `class_names.json` は app 側で読み込み、**学習時と推論時のクラス順ズレを防止**します。
+> `class_names.json` は app 側でフォールバック利用され、**学習時と推論時のクラス順ズレを防止**します。
 
 ## 4) アプリ起動
 
@@ -154,8 +144,8 @@ streamlit run app.py
 
 精度劣化や誤判定を避けるため、以下を必ず守ってください。
 
-- Stage1/Stage2 のモデルファイルを `models/` 配下に配置
-- `class_names.json` を最新の Stage2 学習結果で更新
+- `app.py` の `MODEL_PATH` と実ファイル配置を一致させる
+- `class_names.json` を最新学習結果で更新
 - 学習後に旧モデルを残したまま動かさない
 - 入力画像の撮影条件を統一（距離、明るさ、ピント）
 
@@ -165,8 +155,7 @@ streamlit run app.py
 
 ### 1) モデルが見つからない
 
-- `models/stage1_binary_model.pth`
-- `models/stage2_disease_model.pth`
+- `models/disease_resnet18_best.pth`（または `MODEL_PATH` で指定したファイル）
 - `class_names.json`
 
 上記の存在を確認し、なければ再学習してください。
@@ -186,9 +175,7 @@ streamlit run app.py
 ## 参考ファイル
 
 - `app.py` : Streamlit アプリ本体
-- `prepare_two_stage_dataset.py` : Two-Stage 用データ生成
-- `train_stage1.py` : healthy vs disease 学習
-- `train_stage2.py` : disease 詳細分類学習
+- `train.py` : 単一モデル学習（EfficientNetV2-S）
 - `disease_info.json` : 病害説明データ
 
 ---
@@ -197,5 +184,5 @@ streamlit run app.py
 
 - 本アプリは意思決定支援ツールです。最終判断は現場状況と専門家確認を推奨します。
 - 撮影条件やデータ分布により診断精度は変動します。
-- 推論モデルには `EfficientNetV2-S`（Two-Stage分類）を使用しています。
+- 推論モデルには `EfficientNetV2-S`（単一モデル分類）を使用しています。
 
