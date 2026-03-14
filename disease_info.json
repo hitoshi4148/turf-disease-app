@@ -1,0 +1,101 @@
+{
+  "anthracnose_decline": {
+    "name": "炭疽病・衰退パッチ",
+    "turf_type": "暖地型芝",
+    "season": "夏",
+    "conditions": "高温ストレス、低窒素、乾燥ストレス",
+    "symptom": "葉に黒色の小さな粒状構造。パッチ状の衰退。",
+    "management": "適正窒素施肥、過度なストレス回避、適切な灌水。",
+    "fungicide": "QoI系、SDHI系"
+  },
+  "brown_patch": {
+    "name": "ブラウンパッチ",
+    "turf_type": "寒地型芝",
+    "season": "夏",
+    "conditions": "高温多湿、夜温20℃以上、窒素過多",
+    "symptom": "大型の円形褐色パッチ。朝露時に煙状の菌糸。",
+    "management": "窒素過多回避、夜間灌水回避、通風確保。",
+    "fungicide": "QoI系、SDHI系、DMI系"
+  },
+  "dollar_spot": {
+    "name": "ダラースポット病",
+    "turf_type": "暖地型芝・寒地型芝",
+    "season": "春〜秋",
+    "conditions": "低窒素、乾燥、朝露",
+    "symptom": "直径3〜6cmの小型円形パッチ。銀白色の斑点。",
+    "management": "適正窒素施肥、朝露除去、適正灌水。",
+    "fungicide": "DMI系、SDHI系、QoI系"
+  },
+  "fairy_ring": {
+    "name": "フェアリーリング",
+    "turf_type": "暖地型芝・寒地型芝",
+    "season": "春〜秋",
+    "conditions": "有機物分解、土壌菌活動",
+    "symptom": "リング状の濃緑帯または枯死帯。",
+    "management": "サッチ管理、土壌通気改善、界面活性剤使用。",
+    "fungicide": "DMI系"
+  },
+  "large_patch": {
+    "name": "ラージパッチ",
+    "turf_type": "暖地型芝",
+    "season": "春・秋",
+    "conditions": "低温多湿、土壌温度15〜20℃",
+    "symptom": "大型円形パッチ。葉の赤褐色枯死。",
+    "management": "秋春の予防防除、排水改善。",
+    "fungicide": "SDHI系、QoI系"
+  },
+  "leaf_spot": {
+    "name": "葉枯病（リーフスポット）",
+    "turf_type": "寒地型芝",
+    "season": "春〜秋",
+    "conditions": "多湿、栄養バランス不良",
+    "symptom": "葉身に小型斑点。進行すると葉枯れ。",
+    "management": "適正施肥、通風確保。",
+    "fungicide": "DMI系、QoI系"
+  },
+  "pythium": {
+    "name": "ピシウムブライト",
+    "turf_type": "寒地型芝",
+    "season": "夏",
+    "conditions": "高温多湿、排水不良",
+    "symptom": "水浸状腐敗。急速に拡大する枯死。",
+    "management": "排水改善、過湿回避、夜間灌水回避。",
+    "fungicide": "ピシウム専用剤"
+  },
+  "red_thread": {
+    "name": "赤葉腐病（レッドスレッド）",
+    "turf_type": "寒地型芝",
+    "season": "春・秋",
+    "conditions": "低窒素、湿潤条件",
+    "symptom": "赤色糸状菌糸が葉先に形成。",
+    "management": "窒素施肥改善。",
+    "fungicide": "DMI系、QoI系"
+  },
+  "snow_mold": {
+    "name": "雪腐病",
+    "turf_type": "寒地型芝",
+    "season": "冬〜雪解け",
+    "conditions": "長期積雪、低温多湿",
+    "symptom": "円形枯死斑。ピンク色菌糸。",
+    "management": "積雪前防除、刈高調整。",
+    "fungicide": "DMI系"
+  },
+  "take_all_patch": {
+    "name": "立枯病（テイクオールパッチ）",
+    "turf_type": "寒地型芝",
+    "season": "春〜初夏",
+    "conditions": "アルカリ土壌、低窒素",
+    "symptom": "リング状衰退。根腐敗。",
+    "management": "土壌pH管理、窒素施肥改善。",
+    "fungicide": "DMI系"
+  },
+  "healthy": {
+    "name": "健全芝",
+    "turf_type": "すべて",
+    "season": "通年",
+    "conditions": "特定の病害症状なし",
+    "symptom": "葉色・密度ともに正常。",
+    "management": "適正施肥、適正刈高、排水管理。",
+    "fungicide": "不要"
+  }
+}
