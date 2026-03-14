@@ -101,21 +101,7 @@ def load_stage_model(model_path, num_classes):
     return model, checkpoint.get("class_names", [])
 
 
-validate_required_files()
-
-stage2_class_names = load_class_names()
-try:
-    stage1_model, stage1_class_names = load_stage_model(STAGE1_MODEL_PATH, 2)
-    stage2_model, _ = load_stage_model(STAGE2_MODEL_PATH, len(stage2_class_names))
-except RuntimeError as e:
-    st.error("モデルの読み込みに失敗しました。学習時と推論時のモデル構造・クラス順が一致しているか確認してください。")
-    st.code(str(e))
-    st.write("- `train_stage1.py` / `train_stage2.py` 実行後の最新モデルを使用")
-    st.write("- `class_names.json` が Stage2 学習時の内容と一致")
-    st.stop()
-
-class_names = stage2_class_names
-print("Loaded stage2 class names:", class_names)
+class_names = []
 
 
 def load_disease_info():
@@ -275,6 +261,19 @@ if diagnose_button:
     if patch_image is None:
         st.warning("病斑パッチの写真をアップロードしてください")
     else:
+        validate_required_files()
+        try:
+            stage2_class_names = load_class_names()
+            stage1_model, stage1_class_names = load_stage_model(STAGE1_MODEL_PATH, 2)
+            stage2_model, _ = load_stage_model(STAGE2_MODEL_PATH, len(stage2_class_names))
+            class_names = stage2_class_names
+        except RuntimeError as e:
+            st.error("モデルの読み込みに失敗しました。学習時と推論時のモデル構造・クラス順が一致しているか確認してください。")
+            st.code(str(e))
+            st.write("- `train_stage1.py` / `train_stage2.py` 実行後の最新モデルを使用")
+            st.write("- `class_names.json` が Stage2 学習時の内容と一致")
+            st.stop()
+
         image = patch_image
         input_tensor = transform(image).unsqueeze(0).to(device)
         patch_pil = image
