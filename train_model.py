@@ -1,56 +1,58 @@
-import os
-import json
 import tensorflow as tf
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import layers, models
 from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
-from tensorflow.keras.optimizers import Adam
 
-# パス設定
-dataset_dir = "dataset"
-model_path = "model.h5"
-labels_path = "turf_labels.json"
+IMG_SIZE = 224
+BATCH_SIZE = 8
+EPOCHS = 20
 
-# ラベル取得と保存
-class_names = sorted([d for d in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, d))])
-with open(labels_path, "w") as f:
-    json.dump(class_names, f, indent=2)
+train_dir = "data_split/train"
+val_dir = "data_split/val"
 
-# データジェネレータ
-datagen = ImageDataGenerator(rescale=1./255, validation_split=0.1)
-
-train_gen = datagen.flow_from_directory(
-    dataset_dir,
-    target_size=(224, 224),
-    batch_size=2,
-    class_mode="categorical",
-    subset="training"
+train_ds = tf.keras.utils.image_dataset_from_directory(
+    train_dir,
+    image_size=(IMG_SIZE, IMG_SIZE),
+    batch_size=BATCH_SIZE
 )
 
-val_gen = datagen.flow_from_directory(
-    dataset_dir,
-    target_size=(224, 224),
-    batch_size=2,
-    class_mode="categorical",
-    subset="validation"
+val_ds = tf.keras.utils.image_dataset_from_directory(
+    val_dir,
+    image_size=(IMG_SIZE, IMG_SIZE),
+    batch_size=BATCH_SIZE
 )
 
-# モデル構築
-base_model = MobileNetV2(weights="imagenet", include_top=False, input_shape=(224, 224, 3))
-x = GlobalAveragePooling2D()(base_model.output)
-output = Dense(len(class_names), activation="softmax")(x)
-model = Model(inputs=base_model.input, outputs=output)
+class_names = train_ds.class_names
+num_classes = len(class_names)
 
-# 転移学習（ベース層は固定）
-for layer in base_model.layers:
-    layer.trainable = False
+base_model = MobileNetV2(
+    input_shape=(IMG_SIZE, IMG_SIZE, 3),
+    include_top=False,
+    weights="imagenet"
+)
+base_model.trainable = False
 
-model.compile(optimizer=Adam(0.0001), loss="categorical_crossentropy", metrics=["accuracy"])
+model = models.Sequential([
+    layers.Rescaling(1./255),
+    base_model,
+    layers.GlobalAveragePooling2D(),
+    layers.Dense(128, activation="relu"),
+    layers.Dropout(0.3),
+    layers.Dense(num_classes, activation="softmax")
+])
 
-# 学習
-model.fit(train_gen, validation_data=val_gen, epochs=10)
+model.compile(
+    optimizer="adam",
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"]
+)
 
-# 保存
-model.save(model_path)
-print(f"Saved model to {model_path}")
+history = model.fit(
+    train_ds,
+    validation_data=val_ds,
+    epochs=EPOCHS
+)
+
+model.save("model_v0_1.keras")
+
+print("Training completed.")
+print("Classes:", class_names)
