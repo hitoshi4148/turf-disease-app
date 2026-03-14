@@ -1,4 +1,8 @@
 ﻿streamlit
+torch
+torchvision
 onnxruntime
 numpy
 pillow
+scikit-learn
+tqdm
