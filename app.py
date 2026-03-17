@@ -7,6 +7,7 @@ import json
 import numpy as np
 import base64
 import os
+import gc
 from urllib.parse import quote
 
 st.set_page_config(
@@ -230,35 +231,32 @@ st.caption("最大ファイルサイズ：200MB")
 patch_name = uploaded_file.name if uploaded_file is not None else "未選択"
 st.caption(f"現在使用中の patch画像: {patch_name}")
 
-if "turf_type_label" not in st.session_state:
-    st.session_state.turf_type_label = "暖地型芝（野芝・高麗芝・バミューダ芝等）"
+with st.form("diagnosis_form"):
+    turf_type_label = st.radio(
+        "芝種を選択してください",
+        [
+            "暖地型芝（野芝・高麗芝・バミューダ芝等）",
+            "寒地型芝（ベントグラス・ライグラス・フェスク・ケンタッキーブルーグラス等）"
+        ],
+        horizontal=True
+    )
+    turf_type = "暖地型芝" if "暖地型芝" in turf_type_label else "寒地型芝"
+    st.info(f"現在の芝種: {turf_type}")
 
-turf_type_label = st.radio(
-    "芝種を選択してください",
-    [
-        "暖地型芝（野芝・高麗芝・バミューダ芝等）",
-        "寒地型芝（ベントグラス・ライグラス・フェスク・ケンタッキーブルーグラス等）"
-    ],
-    horizontal=True
-)
-st.session_state.turf_type_label = turf_type_label
-turf_type = "暖地型芝" if "暖地型芝" in turf_type_label else "寒地型芝"
-st.info(f"現在の芝種: {turf_type}")
+    st.subheader("症状の特徴（わかる範囲で選択）")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image("ui_images/symptom_patch.jpg", width=420)
+        symptom_patch = st.checkbox("円形パッチ", key="symptom_patch")
+        st.image("ui_images/symptom_thread.jpg", width=420)
+        symptom_thread = st.checkbox("赤い糸", key="symptom_thread")
+    with col2:
+        st.image("ui_images/symptom_water.jpg", width=420)
+        symptom_water = st.checkbox("水浸状", key="symptom_water")
+        st.image("ui_images/symptom_ring.jpg", width=420)
+        symptom_ring = st.checkbox("リング状", key="symptom_ring")
 
-st.subheader("症状の特徴（わかる範囲で選択）")
-col1, col2 = st.columns(2)
-with col1:
-    st.image("ui_images/symptom_patch.jpg", width=420)
-    symptom_patch = st.checkbox("円形パッチ", key="symptom_patch")
-    st.image("ui_images/symptom_thread.jpg", width=420)
-    symptom_thread = st.checkbox("赤い糸", key="symptom_thread")
-with col2:
-    st.image("ui_images/symptom_water.jpg", width=420)
-    symptom_water = st.checkbox("水浸状", key="symptom_water")
-    st.image("ui_images/symptom_ring.jpg", width=420)
-    symptom_ring = st.checkbox("リング状", key="symptom_ring")
-
-diagnose_button = st.button("AI診断を開始")
+    diagnose_button = st.form_submit_button("AI診断を開始")
 
 if diagnose_button:
     if patch_image is None:
@@ -277,7 +275,7 @@ if diagnose_button:
         image = patch_image
         input_tensor = transform(image).unsqueeze(0).to(device)
 
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = model(input_tensor)
             base_probs = torch.softmax(outputs, dim=1)
             final_probs = base_probs.clone()
@@ -316,6 +314,7 @@ if diagnose_button:
                 class_names[top3_idx[0][rank].item()]
                 for rank in range(top_k)
             ]
+            del outputs, base_probs, final_probs
 
         probability_map = {class_name: float(adjusted_probs[i] * 100) for i, class_name in enumerate(class_names)}
         display_probabilities = {
@@ -369,6 +368,9 @@ if diagnose_button:
                 st.image(image_path, caption="参考画像", use_container_width=True)
             else:
                 st.write("参考画像は現在準備中です")
+
+        del input_tensor, probs
+        gc.collect()
 
 st.divider()
 mailto_url = f"mailto:growthandprogress4148.gmail.com?subject={quote('バナー広告について')}"
