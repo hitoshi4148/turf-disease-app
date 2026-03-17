@@ -175,6 +175,10 @@ def adjust_probabilities(probs, class_names, turf_type,
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    ),
 ])
 
 # ======================
@@ -305,7 +309,22 @@ if diagnose_button:
             )
 
             probs = torch.tensor(adjusted_probs, dtype=torch.float32).unsqueeze(0)
+            healthy_override_used = False
             pred_idx = torch.argmax(probs, dim=1).item()
+
+            # healthy過判定を抑える安全弁:
+            # 症状入力があるのにhealthyが低信頼なら、次点の病害候補を優先する
+            symptoms_selected = symptom_patch or symptom_thread or symptom_water or symptom_ring
+            if "healthy" in class_names and probs.size(1) >= 2:
+                healthy_idx = class_names.index("healthy")
+                if pred_idx == healthy_idx:
+                    healthy_prob = probs[0][healthy_idx].item()
+                    top2_prob, top2_idx = torch.topk(probs, k=2)
+                    second_idx = top2_idx[0][1].item()
+                    if symptoms_selected and healthy_prob < 0.85:
+                        pred_idx = second_idx
+                        healthy_override_used = True
+
             pred_class = class_names[pred_idx]
             confidence = probs[0][pred_idx].item()
             top_k = min(10, probs.size(1))
@@ -330,6 +349,8 @@ if diagnose_button:
         display_name = disease_info.get("name", predicted_class)
 
         st.subheader("診断結果")
+        if healthy_override_used:
+            st.warning("症状入力と判定の整合を考慮し、healthy判定ではなく次点の病害候補を表示しています。")
         st.success(f"病名: {display_name} / 信頼度: {confidence}")
         result_col1, result_col2 = st.columns([2, 1])
 
