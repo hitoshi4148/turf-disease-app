@@ -17,7 +17,7 @@ st.set_page_config(
 # ======================
 # 設定
 # ======================
-MODEL_PATH = "models/disease_resnet18_best.pth"
+MODEL_PATH = "models/mobilenet_v3_small_best.pth"
 CLASS_NAMES_PATH = "class_names.json"
 DISEASE_INFO_PATH = "disease_info.json"
 BANNER_IMAGE_PATH = r"C:\Users\hitos\.cursor\projects\c-Users-hitos-disease-classification\assets\c__Users_hitos_AppData_Roaming_Cursor_User_workspaceStorage_06f2bd11c3ead2a302f748a2d89a9f59_images_banner_ad_recruitment_728x90-30f0f326-eb56-4988-892f-cad746e7e45b.png"
@@ -93,9 +93,9 @@ def load_model():
     if not loaded_class_names:
         raise RuntimeError("class_names がモデルにも class_names.json にも存在しません。")
 
-    model = models.efficientnet_v2_s(weights=None)
-    model.classifier[1] = nn.Linear(
-        model.classifier[1].in_features,
+    model = models.mobilenet_v3_small(weights=None)
+    model.classifier[3] = nn.Linear(
+        model.classifier[3].in_features,
         len(loaded_class_names)
     )
     model.load_state_dict(state_dict)
