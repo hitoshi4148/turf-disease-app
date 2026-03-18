@@ -2,7 +2,7 @@ import streamlit as st
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
-from PIL import Image
+from PIL import Image, ImageOps
 import json
 import numpy as np
 import base64
@@ -148,6 +148,34 @@ def load_optimized_image_bytes(path, max_width=800, quality=72):
         return None
 
 
+def prepare_uploaded_patch_image(uploaded_file, max_long_edge=1280):
+    try:
+        uploaded_file.seek(0)
+        with Image.open(uploaded_file) as img:
+            # スマホ撮影画像の向きをEXIFに従って補正
+            img = ImageOps.exif_transpose(img)
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+
+            width, height = img.size
+            long_edge = max(width, height)
+            if long_edge > max_long_edge:
+                scale = max_long_edge / float(long_edge)
+                resized = (
+                    max(1, int(width * scale)),
+                    max(1, int(height * scale))
+                )
+                img = img.resize(resized, Image.Resampling.LANCZOS)
+
+            return img, None
+    except Exception:
+        return None, (
+            "画像の読み込みに失敗しました。"
+            "iPhoneのHEIC形式や破損ファイルの可能性があります。"
+            "JPG/PNGに変換して再アップロードしてください。"
+        )
+
+
 disease_info_data = load_disease_info()
 
 
@@ -252,15 +280,21 @@ with col2:
 st.subheader("写真をアップロード")
 uploaded_file = st.file_uploader(
     "芝生の写真をアップロードしてください",
-    type=["jpg", "jpeg", "png"],
+    type=["jpg", "jpeg", "png", "heic", "heif"],
     accept_multiple_files=False
 )
 patch_image = None
 
 if uploaded_file is not None:
-    patch_image = Image.open(uploaded_file).convert("RGB")
-    st.image(patch_image, caption="アップロード画像", use_container_width=True)
-st.caption("対応形式：JPG / JPEG / PNG")
+    patch_image, image_error = prepare_uploaded_patch_image(uploaded_file, max_long_edge=1280)
+    if image_error:
+        st.error(image_error)
+    elif patch_image is not None:
+        st.image(patch_image, caption="アップロード画像", use_container_width=True)
+st.caption("対応形式：JPG / JPEG / PNG / HEIC / HEIF（推奨: JPG）")
+st.caption("スマホの『カメラ起動』は端末負荷が高いため、撮影後の画像ファイル選択を推奨します。")
+st.caption("iPhoneは『設定 > カメラ > フォーマット > 互換性優先』でJPG保存に変更できます。")
+st.caption("高解像度画像は自動で縮小してから推論します（長辺1280px）。")
 st.caption("最大ファイルサイズ：200MB")
 
 patch_name = uploaded_file.name if uploaded_file is not None else "未選択"
