@@ -7,7 +7,6 @@ import json
 import numpy as np
 import base64
 import os
-import gc
 from urllib.parse import quote
 
 st.set_page_config(
@@ -58,7 +57,6 @@ DISEASE_QUERY_NAME_MAP = {
     "take_all_patch": "立枯病",
 }
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.set_num_threads(1)
 
 
 def validate_required_files():
@@ -126,13 +124,6 @@ def load_banner_base64(path):
             return base64.b64encode(f.read()).decode("utf-8")
     except OSError:
         return None
-
-
-@st.cache_data
-def load_optimized_image_bytes(path, max_width=800, quality=72):
-    # 低メモリ環境（Render free tier）ではサーバー側再エンコードを無効化
-    # st.image(path) にフォールバックしてメモリスパイクを避ける
-    return None
 
 
 def prepare_uploaded_patch_image(uploaded_file, max_long_edge=1280):
@@ -253,7 +244,7 @@ st.markdown(
 st.markdown('<h1 style="text-align:center;">芝しごと・芝生病害画像診断AI</h1>', unsafe_allow_html=True)
 st.markdown('<p style="text-align:center;color:gray;">v1.0.0</p>', unsafe_allow_html=True)
 st.write("芝生の病斑写真をアップロードするとAIが病害を推定します。")
-light_mode = st.checkbox("スマホ軽量モード（通信・メモリ節約）", value=True)
+light_mode = True
 
 st.subheader("撮影方法")
 if light_mode:
@@ -270,15 +261,16 @@ else:
 st.subheader("写真をアップロード")
 uploaded_file = st.file_uploader(
     "芝生の写真をアップロードしてください",
+    type=["jpg", "jpeg", "png", "webp"],
     accept_multiple_files=False
 )
 patch_image = None
 
 if uploaded_file is not None:
     file_name = (uploaded_file.name or "").lower()
-    allowed_ext = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
+    allowed_ext = (".jpg", ".jpeg", ".png", ".webp")
     if not file_name.endswith(allowed_ext):
-        st.error("対応形式は JPG / JPEG / PNG / WEBP です。HEIC/HEIFはJPG変換後にアップロードしてください。")
+        st.error("対応形式は JPG / JPEG / PNG / WEBP です。")
     else:
         file_size_mb = uploaded_file.size / (1024 * 1024)
         if file_size_mb > MAX_UPLOAD_MB:
@@ -448,7 +440,6 @@ if diagnose_button:
                 st.write("参考画像は現在準備中です")
 
         del input_tensor, probs
-        gc.collect()
 
 st.divider()
 mailto_url = f"mailto:growthandprogress4148.gmail.com?subject={quote('バナー広告について')}"
