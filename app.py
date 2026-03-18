@@ -8,7 +8,6 @@ import numpy as np
 import base64
 import os
 import gc
-import io
 from urllib.parse import quote
 
 st.set_page_config(
@@ -23,6 +22,7 @@ MODEL_PATH = "models/mobilenet_v3_small_best.pth"
 CLASS_NAMES_PATH = "class_names.json"
 DISEASE_INFO_PATH = "disease_info.json"
 BANNER_IMAGE_PATH = r"C:\Users\hitos\.cursor\projects\c-Users-hitos-disease-classification\assets\c__Users_hitos_AppData_Roaming_Cursor_User_workspaceStorage_06f2bd11c3ead2a302f748a2d89a9f59_images_banner_ad_recruitment_728x90-30f0f326-eb56-4988-892f-cad746e7e45b.png"
+MAX_UPLOAD_MB = 8
 TURF_CLASS_PRIORS = {
     # 暖地型芝: large_patch を強め、寒地型で多い病害を抑制
     "暖地型芝": {
@@ -58,6 +58,7 @@ DISEASE_QUERY_NAME_MAP = {
     "take_all_patch": "立枯病",
 }
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.set_num_threads(1)
 
 
 def validate_required_files():
@@ -129,23 +130,9 @@ def load_banner_base64(path):
 
 @st.cache_data
 def load_optimized_image_bytes(path, max_width=800, quality=72):
-    try:
-        with Image.open(path) as img:
-            if img.mode not in ("RGB", "L"):
-                img = img.convert("RGB")
-            elif img.mode == "L":
-                img = img.convert("RGB")
-
-            width, height = img.size
-            if width > max_width:
-                new_height = int(height * (max_width / width))
-                img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
-
-            buffer = io.BytesIO()
-            img.save(buffer, format="WEBP", quality=quality, method=6)
-            return buffer.getvalue()
-    except OSError:
-        return None
+    # 低メモリ環境（Render free tier）ではサーバー側再エンコードを無効化
+    # st.image(path) にフォールバックしてメモリスパイクを避ける
+    return None
 
 
 def prepare_uploaded_patch_image(uploaded_file, max_long_edge=1280):
@@ -286,16 +273,23 @@ uploaded_file = st.file_uploader(
 patch_image = None
 
 if uploaded_file is not None:
-    patch_image, image_error = prepare_uploaded_patch_image(uploaded_file, max_long_edge=1280)
-    if image_error:
-        st.error(image_error)
-    elif patch_image is not None:
-        st.image(patch_image, caption="アップロード画像", use_container_width=True)
+    file_size_mb = uploaded_file.size / (1024 * 1024)
+    if file_size_mb > MAX_UPLOAD_MB:
+        st.error(
+            f"画像サイズが大きすぎます（{file_size_mb:.1f}MB）。"
+            f"{MAX_UPLOAD_MB}MB以下の画像で再アップロードしてください。"
+        )
+    else:
+        patch_image, image_error = prepare_uploaded_patch_image(uploaded_file, max_long_edge=1280)
+        if image_error:
+            st.error(image_error)
+        elif patch_image is not None:
+            st.image(patch_image, caption="アップロード画像", use_container_width=True)
 st.caption("対応形式：JPG / JPEG / PNG / HEIC / HEIF（推奨: JPG）")
 st.caption("スマホの『カメラ起動』は端末負荷が高いため、撮影後の画像ファイル選択を推奨します。")
 st.caption("iPhoneは『設定 > カメラ > フォーマット > 互換性優先』でJPG保存に変更できます。")
 st.caption("高解像度画像は自動で縮小してから推論します（長辺1280px）。")
-st.caption("最大ファイルサイズ：200MB")
+st.caption(f"最大ファイルサイズ：{MAX_UPLOAD_MB}MB")
 
 patch_name = uploaded_file.name if uploaded_file is not None else "未選択"
 st.caption(f"現在使用中の patch画像: {patch_name}")
