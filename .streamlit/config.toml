@@ -3,6 +3,11 @@
 maxUploadSize = 12
 enableCORS = false
 enableXsrfProtection = false
+enableWebsocketCompression = false
+fileWatcherType = "none"
 
 [browser]
 gatherUsageStats = false
+
+[logger]
+level = "debug"
