@@ -22,7 +22,7 @@ MODEL_PATH = "models/mobilenet_v3_small_best.pth"
 CLASS_NAMES_PATH = "class_names.json"
 DISEASE_INFO_PATH = "disease_info.json"
 BANNER_IMAGE_PATH = r"C:\Users\hitos\.cursor\projects\c-Users-hitos-disease-classification\assets\c__Users_hitos_AppData_Roaming_Cursor_User_workspaceStorage_06f2bd11c3ead2a302f748a2d89a9f59_images_banner_ad_recruitment_728x90-30f0f326-eb56-4988-892f-cad746e7e45b.png"
-MAX_UPLOAD_MB = 8
+MAX_UPLOAD_MB = 5
 TURF_CLASS_PRIORS = {
     # 暖地型芝: large_patch を強め、寒地型で多い病害を抑制
     "暖地型芝": {
@@ -246,23 +246,19 @@ st.markdown(
 st.markdown('<h1 style="text-align:center;">芝しごと・芝生病害画像診断AI</h1>', unsafe_allow_html=True)
 st.markdown('<p style="text-align:center;color:gray;">v1.0.0</p>', unsafe_allow_html=True)
 st.write("芝生の病斑写真をアップロードするとAIが病害を推定します。")
+light_mode = st.checkbox("スマホ軽量モード（通信・メモリ節約）", value=True)
 
 st.subheader("撮影方法")
-col1, col2 = st.columns(2)
-with col1:
-    photo_good_bytes = load_optimized_image_bytes("ui_images/photo_good.jpg", max_width=720, quality=70)
-    if photo_good_bytes:
-        st.image(photo_good_bytes)
-    else:
+if light_mode:
+    st.info("軽量モードでは撮影参考画像を省略しています。病斑がはっきり見える近距離・明るい場所で撮影してください。")
+else:
+    col1, col2 = st.columns(2)
+    with col1:
         st.image("ui_images/photo_good.jpg")
-    st.success("良い例：病斑がはっきり写っている")
-with col2:
-    photo_bad_bytes = load_optimized_image_bytes("ui_images/photo_bad.jpg", max_width=720, quality=70)
-    if photo_bad_bytes:
-        st.image(photo_bad_bytes)
-    else:
+        st.success("良い例：病斑がはっきり写っている")
+    with col2:
         st.image("ui_images/photo_bad.jpg")
-    st.error("悪い例：遠すぎる / ピンぼけ / 影")
+        st.error("悪い例：遠すぎる / ピンぼけ / 影")
 
 st.subheader("写真をアップロード")
 uploaded_file = st.file_uploader(
@@ -280,15 +276,16 @@ if uploaded_file is not None:
             f"{MAX_UPLOAD_MB}MB以下の画像で再アップロードしてください。"
         )
     else:
-        patch_image, image_error = prepare_uploaded_patch_image(uploaded_file, max_long_edge=1280)
+        patch_image, image_error = prepare_uploaded_patch_image(uploaded_file, max_long_edge=1024)
         if image_error:
             st.error(image_error)
         elif patch_image is not None:
-            st.image(patch_image, caption="アップロード画像", use_container_width=True)
+            if not light_mode:
+                st.image(patch_image, caption="アップロード画像", use_container_width=True)
 st.caption("対応形式：JPG / JPEG / PNG / HEIC / HEIF（推奨: JPG）")
 st.caption("スマホの『カメラ起動』は端末負荷が高いため、撮影後の画像ファイル選択を推奨します。")
 st.caption("iPhoneは『設定 > カメラ > フォーマット > 互換性優先』でJPG保存に変更できます。")
-st.caption("高解像度画像は自動で縮小してから推論します（長辺1280px）。")
+st.caption("高解像度画像は自動で縮小してから推論します（長辺1024px）。")
 st.caption(f"最大ファイルサイズ：{MAX_UPLOAD_MB}MB")
 
 patch_name = uploaded_file.name if uploaded_file is not None else "未選択"
@@ -309,29 +306,17 @@ with st.form("diagnosis_form"):
     st.subheader("症状の特徴（わかる範囲で選択）")
     col1, col2 = st.columns(2)
     with col1:
-        symptom_patch_bytes = load_optimized_image_bytes("ui_images/symptom_patch.jpg", max_width=680, quality=70)
-        if symptom_patch_bytes:
-            st.image(symptom_patch_bytes, width=420)
-        else:
+        if not light_mode:
             st.image("ui_images/symptom_patch.jpg", width=420)
         symptom_patch = st.checkbox("円形パッチ", key="symptom_patch")
-        symptom_thread_bytes = load_optimized_image_bytes("ui_images/symptom_thread.jpg", max_width=680, quality=70)
-        if symptom_thread_bytes:
-            st.image(symptom_thread_bytes, width=420)
-        else:
+        if not light_mode:
             st.image("ui_images/symptom_thread.jpg", width=420)
         symptom_thread = st.checkbox("赤い糸", key="symptom_thread")
     with col2:
-        symptom_water_bytes = load_optimized_image_bytes("ui_images/symptom_water.jpg", max_width=680, quality=70)
-        if symptom_water_bytes:
-            st.image(symptom_water_bytes, width=420)
-        else:
+        if not light_mode:
             st.image("ui_images/symptom_water.jpg", width=420)
         symptom_water = st.checkbox("水浸状", key="symptom_water")
-        symptom_ring_bytes = load_optimized_image_bytes("ui_images/symptom_ring.jpg", max_width=680, quality=70)
-        if symptom_ring_bytes:
-            st.image(symptom_ring_bytes, width=420)
-        else:
+        if not light_mode:
             st.image("ui_images/symptom_ring.jpg", width=420)
         symptom_ring = st.checkbox("リング状", key="symptom_ring")
 
@@ -445,12 +430,10 @@ if diagnose_button:
                     image_path = path
                     break
 
-            if image_path:
-                disease_image_bytes = load_optimized_image_bytes(image_path, max_width=820, quality=72)
-                if disease_image_bytes:
-                    st.image(disease_image_bytes, caption="参考画像", use_container_width=True)
-                else:
-                    st.image(image_path, caption="参考画像", use_container_width=True)
+            if image_path and not light_mode:
+                st.image(image_path, caption="参考画像", use_container_width=True)
+            elif image_path and light_mode:
+                st.caption("軽量モードのため参考画像を省略しています。")
             else:
                 st.write("参考画像は現在準備中です")
 
