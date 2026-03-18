@@ -230,7 +230,7 @@ st.markdown(
 
 st.markdown('<h1 style="text-align:center;">芝しごと・芝生病害画像診断AI</h1>', unsafe_allow_html=True)
 st.markdown('<p style="text-align:center;color:gray;">v1.0.0</p>', unsafe_allow_html=True)
-st.write("芝生の病斑写真と葉写真をアップロードするとAIが病害を診断します。")
+st.write("芝生の病斑写真をアップロードするとAIが病害を推定します。")
 
 st.subheader("撮影方法")
 col1, col2 = st.columns(2)
