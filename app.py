@@ -22,7 +22,7 @@ MODEL_PATH = "models/mobilenet_v3_small_best.pth"
 CLASS_NAMES_PATH = "class_names.json"
 DISEASE_INFO_PATH = "disease_info.json"
 BANNER_IMAGE_PATH = r"C:\Users\hitos\.cursor\projects\c-Users-hitos-disease-classification\assets\c__Users_hitos_AppData_Roaming_Cursor_User_workspaceStorage_06f2bd11c3ead2a302f748a2d89a9f59_images_banner_ad_recruitment_728x90-30f0f326-eb56-4988-892f-cad746e7e45b.png"
-MAX_UPLOAD_MB = 5
+MAX_UPLOAD_MB = 12
 TURF_CLASS_PRIORS = {
     # 暖地型芝: large_patch を強め、寒地型で多い病害を抑制
     "暖地型芝": {
@@ -270,26 +270,29 @@ else:
 st.subheader("写真をアップロード")
 uploaded_file = st.file_uploader(
     "芝生の写真をアップロードしてください",
-    type=["jpg", "jpeg", "png"],
     accept_multiple_files=False
 )
 patch_image = None
 
 if uploaded_file is not None:
-    file_size_mb = uploaded_file.size / (1024 * 1024)
-    if file_size_mb > MAX_UPLOAD_MB:
-        st.error(
-            f"画像サイズが大きすぎます（{file_size_mb:.1f}MB）。"
-            f"{MAX_UPLOAD_MB}MB以下の画像で再アップロードしてください。"
-        )
+    file_name = (uploaded_file.name or "").lower()
+    allowed_ext = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
+    if not file_name.endswith(allowed_ext):
+        st.error("対応形式は JPG / JPEG / PNG / WEBP です。HEIC/HEIFはJPG変換後にアップロードしてください。")
     else:
-        patch_image, image_error = prepare_uploaded_patch_image(uploaded_file, max_long_edge=1024)
-        if image_error:
-            st.error(image_error)
-        elif patch_image is not None:
-            if not light_mode:
+        file_size_mb = uploaded_file.size / (1024 * 1024)
+        if file_size_mb > MAX_UPLOAD_MB:
+            st.error(
+                f"画像サイズが大きすぎます（{file_size_mb:.1f}MB）。"
+                f"{MAX_UPLOAD_MB}MB以下の画像で再アップロードしてください。"
+            )
+        else:
+            patch_image, image_error = prepare_uploaded_patch_image(uploaded_file, max_long_edge=1024)
+            if image_error:
+                st.error(image_error)
+            elif patch_image is not None and not light_mode:
                 st.image(patch_image, caption="アップロード画像", use_container_width=True)
-st.caption("対応形式：JPG / JPEG / PNG（推奨: JPG）")
+st.caption("対応形式：JPG / JPEG / PNG / WEBP（推奨: JPG）")
 st.caption("スマホの『カメラ起動』は端末負荷が高いため、撮影後の画像ファイル選択を推奨します。")
 st.caption("iPhoneは『設定 > カメラ > フォーマット > 互換性優先』でJPG保存に変更できます。")
 st.caption("高解像度画像は自動で縮小してから推論します（長辺1024px）。")
