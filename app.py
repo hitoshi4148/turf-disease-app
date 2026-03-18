@@ -137,6 +137,13 @@ def load_optimized_image_bytes(path, max_width=800, quality=72):
 
 def prepare_uploaded_patch_image(uploaded_file, max_long_edge=1280):
     try:
+        file_name = (uploaded_file.name or "").lower()
+        if file_name.endswith(".heic") or file_name.endswith(".heif"):
+            return None, (
+                "HEIC/HEIF形式は現在の公開環境では不安定です。"
+                "JPG/PNGに変換して再アップロードしてください。"
+            )
+
         uploaded_file.seek(0)
         with Image.open(uploaded_file) as img:
             # スマホ撮影画像の向きをEXIFに従って補正
@@ -263,7 +270,7 @@ else:
 st.subheader("写真をアップロード")
 uploaded_file = st.file_uploader(
     "芝生の写真をアップロードしてください",
-    type=["jpg", "jpeg", "png", "heic", "heif"],
+    type=["jpg", "jpeg", "png"],
     accept_multiple_files=False
 )
 patch_image = None
@@ -282,7 +289,7 @@ if uploaded_file is not None:
         elif patch_image is not None:
             if not light_mode:
                 st.image(patch_image, caption="アップロード画像", use_container_width=True)
-st.caption("対応形式：JPG / JPEG / PNG / HEIC / HEIF（推奨: JPG）")
+st.caption("対応形式：JPG / JPEG / PNG（推奨: JPG）")
 st.caption("スマホの『カメラ起動』は端末負荷が高いため、撮影後の画像ファイル選択を推奨します。")
 st.caption("iPhoneは『設定 > カメラ > フォーマット > 互換性優先』でJPG保存に変更できます。")
 st.caption("高解像度画像は自動で縮小してから推論します（長辺1024px）。")
