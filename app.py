@@ -22,22 +22,27 @@ MODEL_PATH = "models/mobilenet_v3_small_best.pth"
 CLASS_NAMES_PATH = "class_names.json"
 DISEASE_INFO_PATH = "disease_info.json"
 BANNER_IMAGE_PATH = r"C:\Users\hitos\.cursor\projects\c-Users-hitos-disease-classification\assets\c__Users_hitos_AppData_Roaming_Cursor_User_workspaceStorage_06f2bd11c3ead2a302f748a2d89a9f59_images_banner_ad_recruitment_728x90-30f0f326-eb56-4988-892f-cad746e7e45b.png"
-COOL_SEASON_DISEASES = {
-    "anthracnose_decline",
-    "brown_patch",
-    "dollar_spot",
-    "fairy_ring",
-    "leaf_spot",
-    "pythium",
-    "red_thread",
-    "snow_mold",
-}
-WARM_SEASON_DISEASES = {
-    "large_patch",
-    "take_all_patch",
-    "pythium",
-    "fairy_ring",
-    "leaf_spot",
+TURF_CLASS_PRIORS = {
+    # 暖地型芝: large_patch を強め、寒地型で多い病害を抑制
+    "暖地型芝": {
+        "large_patch": 2.2,
+        "take_all_patch": 1.4,
+        "snow_mold": 0.10,
+        "dollar_spot": 0.20,
+        "anthracnose_decline": 0.30,
+        "leaf_spot": 0.60,
+        "red_thread": 0.50,
+    },
+    # 寒地型芝: large_patch を強く抑制し、寒地型で多い病害を優遇
+    "寒地型芝": {
+        "large_patch": 0.05,
+        "take_all_patch": 0.40,
+        "snow_mold": 1.40,
+        "dollar_spot": 1.25,
+        "anthracnose_decline": 1.25,
+        "leaf_spot": 1.15,
+        "red_thread": 1.10,
+    },
 }
 DISEASE_QUERY_NAME_MAP = {
     "anthracnose_decline": "炭疽病",
@@ -137,30 +142,26 @@ def adjust_probabilities(probs, class_names, turf_type,
                          symptom_patch, symptom_thread,
                          symptom_water, symptom_ring):
     adjusted = np.asarray(probs, dtype=np.float64).copy()
+    priors = TURF_CLASS_PRIORS.get(turf_type, {})
 
     for i, name in enumerate(class_names):
         n = name.lower().replace("_", "")
 
         # 芝種補正
-        if turf_type == "暖地型芝":
-            if "snow" in n:
-                adjusted[i] *= 0.2
-        else:
-            if "largepatch" in n:
-                adjusted[i] *= 0.2
+        adjusted[i] *= priors.get(name, 1.0)
 
         # 症状補正
         if symptom_thread and "redthread" in n:
-            adjusted[i] *= 2.0
+            adjusted[i] *= 1.6
 
         if symptom_ring and "fairy" in n:
-            adjusted[i] *= 1.4
+            adjusted[i] *= 1.25
 
         if symptom_water and "pythium" in n:
-            adjusted[i] *= 1.4
+            adjusted[i] *= 1.20
 
         if symptom_patch and "dollar" in n:
-            adjusted[i] *= 1.2
+            adjusted[i] *= 1.15
 
     # 正規化
     total = adjusted.sum()
@@ -282,22 +283,7 @@ if diagnose_button:
         with torch.inference_mode():
             outputs = model(input_tensor)
             base_probs = torch.softmax(outputs, dim=1)
-            final_probs = base_probs.clone()
-
-            excluded_diseases = set()
-            if turf_type == "寒地型芝":
-                excluded_diseases = WARM_SEASON_DISEASES - COOL_SEASON_DISEASES
-            elif turf_type == "暖地型芝":
-                excluded_diseases = COOL_SEASON_DISEASES - WARM_SEASON_DISEASES
-
-            for idx, cls in enumerate(class_names):
-                if cls in excluded_diseases:
-                    final_probs[0, idx] *= 0.2
-
-            prob_sum = final_probs.sum(dim=1, keepdim=True)
-            final_probs = final_probs / prob_sum.clamp(min=1e-12)
-
-            final_probs_np = final_probs.squeeze(0).cpu().numpy()
+            final_probs_np = base_probs.squeeze(0).cpu().numpy()
             adjusted_probs = adjust_probabilities(
                 final_probs_np,
                 class_names,
@@ -333,7 +319,7 @@ if diagnose_button:
                 class_names[top3_idx[0][rank].item()]
                 for rank in range(top_k)
             ]
-            del outputs, base_probs, final_probs
+            del outputs, base_probs
 
         probability_map = {class_name: float(adjusted_probs[i] * 100) for i, class_name in enumerate(class_names)}
         display_probabilities = {
