@@ -244,7 +244,7 @@ st.markdown(
 st.markdown('<h1 style="text-align:center;">芝しごと・芝生病害画像診断AI</h1>', unsafe_allow_html=True)
 st.markdown('<p style="text-align:center;color:gray;">v1.0.0</p>', unsafe_allow_html=True)
 st.write("芝生の病斑写真をアップロードするとAIが病害を推定します。")
-light_mode = True
+light_mode = st.checkbox("スマホ軽量モード（通信・メモリ節約）", value=True)
 
 st.subheader("撮影方法")
 if light_mode:
@@ -266,24 +266,6 @@ uploaded_file = st.file_uploader(
 )
 patch_image = None
 
-if uploaded_file is not None:
-    file_name = (uploaded_file.name or "").lower()
-    allowed_ext = (".jpg", ".jpeg", ".png", ".webp")
-    if not file_name.endswith(allowed_ext):
-        st.error("対応形式は JPG / JPEG / PNG / WEBP です。")
-    else:
-        file_size_mb = uploaded_file.size / (1024 * 1024)
-        if file_size_mb > MAX_UPLOAD_MB:
-            st.error(
-                f"画像サイズが大きすぎます（{file_size_mb:.1f}MB）。"
-                f"{MAX_UPLOAD_MB}MB以下の画像で再アップロードしてください。"
-            )
-        else:
-            patch_image, image_error = prepare_uploaded_patch_image(uploaded_file, max_long_edge=1024)
-            if image_error:
-                st.error(image_error)
-            elif patch_image is not None and not light_mode:
-                st.image(patch_image, caption="アップロード画像", use_container_width=True)
 st.caption("対応形式：JPG / JPEG / PNG / WEBP（推奨: JPG）")
 st.caption("スマホの『カメラ起動』は端末負荷が高いため、撮影後の画像ファイル選択を推奨します。")
 st.caption("iPhoneは『設定 > カメラ > フォーマット > 互換性優先』でJPG保存に変更できます。")
@@ -325,9 +307,31 @@ with st.form("diagnosis_form"):
     diagnose_button = st.form_submit_button("AI診断を開始")
 
 if diagnose_button:
-    if patch_image is None:
+    if uploaded_file is None:
         st.warning("病斑パッチの写真をアップロードしてください")
     else:
+        file_name = (uploaded_file.name or "").lower()
+        allowed_ext = (".jpg", ".jpeg", ".png", ".webp")
+        if not file_name.endswith(allowed_ext):
+            st.error("対応形式は JPG / JPEG / PNG / WEBP です。")
+            st.stop()
+
+        file_size_mb = uploaded_file.size / (1024 * 1024)
+        if file_size_mb > MAX_UPLOAD_MB:
+            st.error(
+                f"画像サイズが大きすぎます（{file_size_mb:.1f}MB）。"
+                f"{MAX_UPLOAD_MB}MB以下の画像で再アップロードしてください。"
+            )
+            st.stop()
+
+        patch_image, image_error = prepare_uploaded_patch_image(uploaded_file, max_long_edge=1024)
+        if image_error or patch_image is None:
+            st.error(image_error or "画像の読み込みに失敗しました。")
+            st.stop()
+
+        if not light_mode:
+            st.image(patch_image, caption="アップロード画像", use_container_width=True)
+
         validate_required_files()
         try:
             model, class_names = load_model()
