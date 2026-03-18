@@ -8,6 +8,7 @@ import numpy as np
 import base64
 import os
 import gc
+import io
 from urllib.parse import quote
 
 st.set_page_config(
@@ -126,6 +127,27 @@ def load_banner_base64(path):
         return None
 
 
+@st.cache_data
+def load_optimized_image_bytes(path, max_width=800, quality=72):
+    try:
+        with Image.open(path) as img:
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            elif img.mode == "L":
+                img = img.convert("RGB")
+
+            width, height = img.size
+            if width > max_width:
+                new_height = int(height * (max_width / width))
+                img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+
+            buffer = io.BytesIO()
+            img.save(buffer, format="WEBP", quality=quality, method=6)
+            return buffer.getvalue()
+    except OSError:
+        return None
+
+
 disease_info_data = load_disease_info()
 
 
@@ -213,10 +235,18 @@ st.write("芝生の病斑写真と葉写真をアップロードするとAIが�
 st.subheader("撮影方法")
 col1, col2 = st.columns(2)
 with col1:
-    st.image("ui_images/photo_good.jpg")
+    photo_good_bytes = load_optimized_image_bytes("ui_images/photo_good.jpg", max_width=720, quality=70)
+    if photo_good_bytes:
+        st.image(photo_good_bytes)
+    else:
+        st.image("ui_images/photo_good.jpg")
     st.success("良い例：病斑がはっきり写っている")
 with col2:
-    st.image("ui_images/photo_bad.jpg")
+    photo_bad_bytes = load_optimized_image_bytes("ui_images/photo_bad.jpg", max_width=720, quality=70)
+    if photo_bad_bytes:
+        st.image(photo_bad_bytes)
+    else:
+        st.image("ui_images/photo_bad.jpg")
     st.error("悪い例：遠すぎる / ピンぼけ / 影")
 
 st.subheader("写真をアップロード")
@@ -251,14 +281,30 @@ with st.form("diagnosis_form"):
     st.subheader("症状の特徴（わかる範囲で選択）")
     col1, col2 = st.columns(2)
     with col1:
-        st.image("ui_images/symptom_patch.jpg", width=420)
+        symptom_patch_bytes = load_optimized_image_bytes("ui_images/symptom_patch.jpg", max_width=680, quality=70)
+        if symptom_patch_bytes:
+            st.image(symptom_patch_bytes, width=420)
+        else:
+            st.image("ui_images/symptom_patch.jpg", width=420)
         symptom_patch = st.checkbox("円形パッチ", key="symptom_patch")
-        st.image("ui_images/symptom_thread.jpg", width=420)
+        symptom_thread_bytes = load_optimized_image_bytes("ui_images/symptom_thread.jpg", max_width=680, quality=70)
+        if symptom_thread_bytes:
+            st.image(symptom_thread_bytes, width=420)
+        else:
+            st.image("ui_images/symptom_thread.jpg", width=420)
         symptom_thread = st.checkbox("赤い糸", key="symptom_thread")
     with col2:
-        st.image("ui_images/symptom_water.jpg", width=420)
+        symptom_water_bytes = load_optimized_image_bytes("ui_images/symptom_water.jpg", max_width=680, quality=70)
+        if symptom_water_bytes:
+            st.image(symptom_water_bytes, width=420)
+        else:
+            st.image("ui_images/symptom_water.jpg", width=420)
         symptom_water = st.checkbox("水浸状", key="symptom_water")
-        st.image("ui_images/symptom_ring.jpg", width=420)
+        symptom_ring_bytes = load_optimized_image_bytes("ui_images/symptom_ring.jpg", max_width=680, quality=70)
+        if symptom_ring_bytes:
+            st.image(symptom_ring_bytes, width=420)
+        else:
+            st.image("ui_images/symptom_ring.jpg", width=420)
         symptom_ring = st.checkbox("リング状", key="symptom_ring")
 
     diagnose_button = st.form_submit_button("AI診断を開始")
@@ -372,7 +418,11 @@ if diagnose_button:
                     break
 
             if image_path:
-                st.image(image_path, caption="参考画像", use_container_width=True)
+                disease_image_bytes = load_optimized_image_bytes(image_path, max_width=820, quality=72)
+                if disease_image_bytes:
+                    st.image(disease_image_bytes, caption="参考画像", use_container_width=True)
+                else:
+                    st.image(image_path, caption="参考画像", use_container_width=True)
             else:
                 st.write("参考画像は現在準備中です")
 
