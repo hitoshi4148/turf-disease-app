@@ -1,13 +1,7 @@
 [server]
-# モバイル環境でのアップロード失敗を減らすため、通信制約を緩和
 maxUploadSize = 12
 enableCORS = false
 enableXsrfProtection = false
-enableWebsocketCompression = false
-fileWatcherType = "none"
 
 [browser]
 gatherUsageStats = false
-
-[logger]
-level = "debug"
