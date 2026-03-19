@@ -7,7 +7,6 @@ import json
 import numpy as np
 import base64
 import os
-from datetime import datetime
 from urllib.parse import quote
 
 st.set_page_config(
@@ -266,24 +265,11 @@ uploaded_file = st.file_uploader(
 )
 patch_image = None
 
-# 一時検証ログ: モバイルでファイル選択イベントがサーバーに到達しているか確認
-if "upload_probe_ts" not in st.session_state:
-    st.session_state.upload_probe_ts = ""
-if uploaded_file is not None:
-    st.session_state.upload_probe_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
 st.caption("対応形式：JPG / JPEG / PNG / WEBP（推奨: JPG）")
 st.caption("スマホの『カメラ起動』は端末負荷が高いため、撮影後の画像ファイル選択を推奨します。")
 st.caption("iPhoneは『設定 > カメラ > フォーマット > 互換性優先』でJPG保存に変更できます。")
 st.caption("高解像度画像は自動で縮小してから推論します（長辺1024px）。")
 st.caption(f"最大ファイルサイズ：{MAX_UPLOAD_MB}MB")
-
-with st.expander("検証ログ（アップロード到達確認）", expanded=False):
-    st.write("ファイル選択イベント到達時刻:", st.session_state.upload_probe_ts or "未到達")
-    if uploaded_file is not None:
-        st.write("ファイル名:", uploaded_file.name)
-        st.write("MIME:", uploaded_file.type or "不明")
-        st.write("サイズ(MB):", f"{uploaded_file.size / (1024 * 1024):.3f}")
 
 patch_name = uploaded_file.name if uploaded_file is not None else "未選択"
 st.caption(f"現在使用中の patch画像: {patch_name}")
@@ -329,8 +315,13 @@ if diagnose_button:
             st.error("対応形式は JPG / JPEG / PNG / WEBP です。")
             st.stop()
 
-        file_size_mb = uploaded_file.size / (1024 * 1024)
-        if file_size_mb > MAX_UPLOAD_MB:
+        file_size_bytes = getattr(uploaded_file, "size", None)
+        if isinstance(file_size_bytes, (int, float)):
+            file_size_mb = file_size_bytes / (1024 * 1024)
+        else:
+            file_size_mb = None
+
+        if file_size_mb is not None and file_size_mb > MAX_UPLOAD_MB:
             st.error(
                 f"画像サイズが大きすぎます（{file_size_mb:.1f}MB）。"
                 f"{MAX_UPLOAD_MB}MB以下の画像で再アップロードしてください。"
