@@ -26,3 +26,13 @@ Thumbs.db
 data_raw/
 data_processed/
 data_two_stage/
+dataset/
+
+# Training artifacts not needed for deployment
+hard_examples.txt
+*.onnx
+*.h5
+
+# Keep only production model in models/
+models/*
+!models/mobilenet_v3_small_best.pth

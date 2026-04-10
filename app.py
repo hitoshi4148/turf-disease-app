@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
@@ -13,6 +14,29 @@ st.set_page_config(
     page_title="芝しごと・芝生病害画像診断AI",
     layout="wide"
 )
+
+
+def inject_google_analytics(measurement_id: str) -> None:
+    if st.session_state.get("_ga_injected"):
+        return
+
+    ga_html = f"""
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={measurement_id}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){{dataLayer.push(arguments);}}
+      gtag('js', new Date());
+      gtag('config', '{measurement_id}', {{
+        page_path: window.parent.location.pathname + window.parent.location.search
+      }});
+    </script>
+    """
+    components.html(ga_html, height=0, width=0)
+    st.session_state["_ga_injected"] = True
+
+
+inject_google_analytics("G-FT1B3ZCT2B")
 
 # ======================
 # 設定
