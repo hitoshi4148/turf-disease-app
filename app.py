@@ -21,15 +21,32 @@ def inject_google_analytics(measurement_id: str) -> None:
         return
 
     ga_html = f"""
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id={measurement_id}"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){{dataLayer.push(arguments);}}
-      gtag('js', new Date());
-      gtag('config', '{measurement_id}', {{
-        page_path: window.parent.location.pathname + window.parent.location.search
-      }});
+      (function() {{
+        try {{
+          var MID = "{measurement_id}";
+          var w = window.parent || window;
+          var d = w.document;
+          if (!d || !d.head) return;
+
+          var existing = d.querySelector('script[src*="googletagmanager.com/gtag/js?id=' + MID + '"]');
+          if (!existing) {{
+            var s = d.createElement('script');
+            s.async = true;
+            s.src = 'https://www.googletagmanager.com/gtag/js?id=' + MID;
+            d.head.appendChild(s);
+          }}
+
+          w.dataLayer = w.dataLayer || [];
+          w.gtag = w.gtag || function() {{ w.dataLayer.push(arguments); }};
+          w.gtag('js', new Date());
+          w.gtag('config', MID, {{
+            page_path: w.location.pathname + w.location.search
+          }});
+        }} catch (e) {{
+          // no-op
+        }}
+      }})();
     </script>
     """
     components.html(ga_html, height=0, width=0)
