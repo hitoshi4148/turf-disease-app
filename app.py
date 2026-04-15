@@ -72,16 +72,59 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
       (function() {{
         try {{
           var doc = (window.parent && window.parent.document) || document;
-          if (doc.getElementById("turf-pr-banner-wrap")) return;
+
+          function fixedTopInsetPx() {{
+            var selectors = [
+              '[data-testid="stToolbar"]',
+              '[data-testid="stHeader"]',
+              '[data-testid="stDecoration"]',
+              "header"
+            ];
+            var maxBottom = 0;
+            for (var i = 0; i < selectors.length; i++) {{
+              var el = doc.querySelector(selectors[i]);
+              if (!el) continue;
+              var cs = window.getComputedStyle(el);
+              var pos = cs.position;
+              var topPx = parseFloat(cs.top);
+              if (pos !== "fixed" && pos !== "sticky" &&
+                  !(pos === "absolute" && !isNaN(topPx) && topPx <= 2)) {{
+                continue;
+              }}
+              var r = el.getBoundingClientRect();
+              if (r.height <= 0) continue;
+              maxBottom = Math.max(maxBottom, r.bottom);
+            }}
+            return Math.ceil(maxBottom);
+          }}
+
+          function applyBannerTopGap(wrap) {{
+            var gap = fixedTopInsetPx();
+            if (gap <= 0) {{
+              var h =
+                doc.querySelector('[data-testid="stHeader"]') ||
+                doc.querySelector("header");
+              if (h) {{
+                var br = wrap.getBoundingClientRect();
+                var hr = h.getBoundingClientRect();
+                if (br.top < hr.bottom - 0.5 && hr.height > 0) {{
+                  gap = Math.ceil(hr.bottom - br.top);
+                }}
+              }}
+            }}
+            if (gap > 0) wrap.style.marginTop = gap + "px";
+          }}
 
           var tries = 0;
           function tryInsert() {{
             if (doc.getElementById("turf-pr-banner-wrap")) return;
             var app = doc.querySelector("section.stApp");
-            var header = doc.querySelector("header");
-            var mount = app || (header && header.parentNode);
-            if (!mount) {{
-              if (tries++ < 60) setTimeout(tryInsert, 50);
+            var headerEl =
+              doc.querySelector('[data-testid="stHeader"]') ||
+              doc.querySelector("header");
+            var mount = app || (headerEl && headerEl.parentNode);
+            if (!mount || !headerEl) {{
+              if (tries++ < 80) setTimeout(tryInsert, 50);
               return;
             }}
 
@@ -92,6 +135,7 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
               "margin:0;padding:0;line-height:0;text-align:center;background:#faf8f2;"
               + "overflow:visible;flex:0 0 auto;flex-shrink:0;align-self:stretch;"
               + "width:100%;box-sizing:border-box;min-height:min-content;"
+              + "position:relative;z-index:1;"
             );
 
             var a = doc.createElement("a");
@@ -108,6 +152,7 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
               "width:auto;height:auto;max-width:100%;display:block;margin:0 auto;"
               + "vertical-align:top;"
             );
+            img.onload = function() {{ applyBannerTopGap(wrap); }};
 
             a.appendChild(img);
             wrap.appendChild(a);
@@ -115,8 +160,13 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
             if (app) {{
               app.insertBefore(wrap, app.firstChild);
             }} else {{
-              mount.insertBefore(wrap, header);
+              mount.insertBefore(wrap, headerEl);
             }}
+
+            applyBannerTopGap(wrap);
+            requestAnimationFrame(function() {{
+              requestAnimationFrame(function() {{ applyBannerTopGap(wrap); }});
+            }});
 
             if (!doc.getElementById("turf-pr-banner-style")) {{
               var st = doc.createElement("style");
