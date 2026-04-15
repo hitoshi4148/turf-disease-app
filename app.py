@@ -77,8 +77,10 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
           var tries = 0;
           function tryInsert() {{
             if (doc.getElementById("turf-pr-banner-wrap")) return;
+            var app = doc.querySelector("section.stApp");
             var header = doc.querySelector("header");
-            if (!header || !header.parentNode) {{
+            var mount = app || (header && header.parentNode);
+            if (!mount) {{
               if (tries++ < 60) setTimeout(tryInsert, 50);
               return;
             }}
@@ -88,12 +90,15 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
             wrap.setAttribute(
               "style",
               "margin:0;padding:0;line-height:0;text-align:center;background:#faf8f2;"
+              + "overflow:visible;flex:0 0 auto;flex-shrink:0;align-self:stretch;"
+              + "width:100%;box-sizing:border-box;min-height:min-content;"
             );
 
             var a = doc.createElement("a");
             a.href = {json.dumps(link_url)};
             a.target = "_blank";
             a.rel = "noopener noreferrer";
+            a.setAttribute("style", "display:block;line-height:0;margin:0;padding:0;");
 
             var img = doc.createElement("img");
             img.src = "data:image/png;base64,{b64}";
@@ -101,11 +106,27 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
             img.setAttribute(
               "style",
               "width:auto;height:auto;max-width:100%;display:block;margin:0 auto;"
+              + "vertical-align:top;"
             );
 
             a.appendChild(img);
             wrap.appendChild(a);
-            header.parentNode.insertBefore(wrap, header);
+
+            if (app) {{
+              app.insertBefore(wrap, app.firstChild);
+            }} else {{
+              mount.insertBefore(wrap, header);
+            }}
+
+            if (!doc.getElementById("turf-pr-banner-style")) {{
+              var st = doc.createElement("style");
+              st.id = "turf-pr-banner-style";
+              st.textContent =
+                "#turf-pr-banner-wrap,#turf-pr-banner-wrap a,#turf-pr-banner-wrap img{{"
+                + "max-height:none!important;clip:auto!important;object-fit:contain;"
+                + "}}";
+              doc.head.appendChild(st);
+            }}
           }}
           tryInsert();
         }} catch (e) {{}}
