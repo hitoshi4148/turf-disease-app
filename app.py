@@ -55,6 +55,67 @@ def inject_google_analytics(measurement_id: str) -> None:
 
 inject_google_analytics("G-FT1B3ZCT2B")
 
+PR_BANNER_IMAGE_PATH = "ui_images/banner_pr_size1.png"
+PR_BANNER_LINK = "https://www.turf-tools.jp/services-4"
+
+
+def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
+    if st.session_state.get("_pr_banner_injected"):
+        return
+
+    b64 = load_banner_base64(image_path)
+    if not b64:
+        return
+
+    banner_html = f"""
+    <script>
+      (function() {{
+        try {{
+          var doc = (window.parent && window.parent.document) || document;
+          if (doc.getElementById("turf-pr-banner-wrap")) return;
+
+          var tries = 0;
+          function tryInsert() {{
+            if (doc.getElementById("turf-pr-banner-wrap")) return;
+            var header = doc.querySelector("header");
+            if (!header || !header.parentNode) {{
+              if (tries++ < 60) setTimeout(tryInsert, 50);
+              return;
+            }}
+
+            var wrap = doc.createElement("div");
+            wrap.id = "turf-pr-banner-wrap";
+            wrap.setAttribute(
+              "style",
+              "margin:0;padding:0;line-height:0;text-align:center;background:#faf8f2;"
+            );
+
+            var a = doc.createElement("a");
+            a.href = {json.dumps(link_url)};
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+
+            var img = doc.createElement("img");
+            img.src = "data:image/png;base64,{b64}";
+            img.alt = "芝管理のプロにPRしませんか";
+            img.setAttribute(
+              "style",
+              "width:auto;height:auto;max-width:100%;display:block;margin:0 auto;"
+            );
+
+            a.appendChild(img);
+            wrap.appendChild(a);
+            header.parentNode.insertBefore(wrap, header);
+          }}
+          tryInsert();
+        }} catch (e) {{}}
+      }})();
+    </script>
+    """
+    components.html(banner_html, height=0, width=0)
+    st.session_state["_pr_banner_injected"] = True
+
+
 # ======================
 # 設定
 # ======================
@@ -157,6 +218,9 @@ def load_banner_base64(path):
             return base64.b64encode(f.read()).decode("utf-8")
     except OSError:
         return None
+
+
+inject_pr_banner_before_header(PR_BANNER_IMAGE_PATH, PR_BANNER_LINK)
 
 
 def prepare_uploaded_patch_image(uploaded_file, max_long_edge=1024):
