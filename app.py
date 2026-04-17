@@ -64,6 +64,8 @@ YOUTUBE_BANNER_LINK = (
     "https://www.youtube.com/channel/UCSRU0zk4Fj1ETWqMRlJDPJQ"
 )
 
+_MOBILE_BANNER_MAX_WIDTH_PX = 768
+
 
 def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
     if st.session_state.get("_pr_banner_injected"):
@@ -81,10 +83,21 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
       (function() {{
         try {{
           var doc = (window.parent && window.parent.document) || document;
+          var win = window.parent || window;
+          var MOBILE_MQ_STR = "(max-width: {_MOBILE_BANNER_MAX_WIDTH_PX}px)";
           var BLOG_B64 = {json.dumps(b64_blog)};
           var YT_B64 = {json.dumps(b64_youtube)};
           var BLOG_URL = {json.dumps(BLOG_BANNER_LINK)};
           var YT_URL = {json.dumps(YOUTUBE_BANNER_LINK)};
+
+          function isMobileWidth() {{
+            return win.matchMedia(MOBILE_MQ_STR).matches;
+          }}
+
+          function removeDesktopStack() {{
+            var el = doc.getElementById("turf-banner-stack");
+            if (el) el.remove();
+          }}
 
           function fixedTopInsetPx() {{
             var selectors = [
@@ -97,7 +110,7 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
             for (var i = 0; i < selectors.length; i++) {{
               var el = doc.querySelector(selectors[i]);
               if (!el) continue;
-              var cs = window.getComputedStyle(el);
+              var cs = win.getComputedStyle(el);
               var pos = cs.position;
               var topPx = parseFloat(cs.top);
               if (pos !== "fixed" && pos !== "sticky" &&
@@ -128,18 +141,23 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
             if (gap > 0) wrap.style.marginTop = gap + "px";
           }}
 
-          var tries = 0;
-          function tryInsert() {{
-            if (doc.getElementById("turf-banner-stack")) return;
-            var app = doc.querySelector("section.stApp");
-            var headerEl =
-              doc.querySelector('[data-testid="stHeader"]') ||
-              doc.querySelector("header");
-            var mount = app || (headerEl && headerEl.parentNode);
-            if (!mount || !headerEl) {{
-              if (tries++ < 80) setTimeout(tryInsert, 50);
-              return;
-            }}
+          function scheduleDesktopInsert() {{
+            var tries = 0;
+            function tick() {{
+              if (isMobileWidth()) {{
+                removeDesktopStack();
+                return;
+              }}
+              if (doc.getElementById("turf-banner-stack")) return;
+              var app = doc.querySelector("section.stApp");
+              var headerEl =
+                doc.querySelector('[data-testid="stHeader"]') ||
+                doc.querySelector("header");
+              var mount = app || (headerEl && headerEl.parentNode);
+              if (!mount || !headerEl) {{
+                if (tries++ < 80) win.setTimeout(tick, 50);
+                return;
+              }}
 
             var stack = doc.createElement("div");
             stack.id = "turf-banner-stack";
@@ -240,8 +258,25 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
                 + "}}";
               doc.head.appendChild(st);
             }}
+            }}
+            tick();
           }}
-          tryInsert();
+
+          function syncBannerMountMode() {{
+            if (isMobileWidth()) {{
+              removeDesktopStack();
+              return;
+            }}
+            scheduleDesktopInsert();
+          }}
+
+          var mq = win.matchMedia(MOBILE_MQ_STR);
+          if (mq.addEventListener) {{
+            mq.addEventListener("change", syncBannerMountMode);
+          }} else if (mq.addListener) {{
+            mq.addListener(syncBannerMountMode);
+          }}
+          syncBannerMountMode();
         }} catch (e) {{}}
       }})();
     </script>
@@ -354,6 +389,63 @@ def load_banner_base64(path):
         return None
 
 
+def render_mobile_banners_inline() -> None:
+    """狭い画面用: メインのスクロール領域内にバナーを置く（上半分固定を避ける）。"""
+    pr_b64 = load_banner_base64(PR_BANNER_IMAGE_PATH)
+    if not pr_b64:
+        return
+    b_blog = load_banner_base64(BLOG_BANNER_IMAGE_PATH) or ""
+    b_yt = load_banner_base64(YOUTUBE_BANNER_IMAGE_PATH) or ""
+
+    parts = [
+        '<div class="turf-banner-inline-mobile-only">',
+        '<a href="',
+        PR_BANNER_LINK,
+        '" target="_blank" rel="noopener noreferrer" '
+        'style="display:block;line-height:0;margin:0;padding:0;">',
+        '<img src="data:image/png;base64,',
+        pr_b64,
+        '" alt="芝管理のプロにPRしませんか" '
+        'style="width:auto;height:auto;max-width:100%;display:block;margin:0 auto;"/>',
+        "</a>",
+    ]
+    if b_blog or b_yt:
+        parts.append(
+            '<div class="turf-banner-subrow-mobile" '
+            'style="display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;'
+            'gap:8px;margin:0;padding:8px 4px 4px;line-height:0;">'
+        )
+        if b_blog:
+            parts.extend([
+                '<a href="',
+                BLOG_BANNER_LINK,
+                '" target="_blank" rel="noopener noreferrer" '
+                'style="display:block;line-height:0;flex:0 1 auto;max-width:100%;">',
+                '<img src="data:image/png;base64,',
+                b_blog,
+                '" alt="芝管理技術ブログ" width="300" height="100" '
+                'style="width:300px;max-width:100%;height:auto;aspect-ratio:3/1;'
+                'object-fit:contain;display:block;box-sizing:border-box;"/>',
+                "</a>",
+            ])
+        if b_yt:
+            parts.extend([
+                '<a href="',
+                YOUTUBE_BANNER_LINK,
+                '" target="_blank" rel="noopener noreferrer" '
+                'style="display:block;line-height:0;flex:0 1 auto;max-width:100%;">',
+                '<img src="data:image/png;base64,',
+                b_yt,
+                '" alt="芝管理ノウハウ YouTube" width="300" height="100" '
+                'style="width:300px;max-width:100%;height:auto;aspect-ratio:3/1;'
+                'object-fit:contain;display:block;box-sizing:border-box;"/>',
+                "</a>",
+            ])
+        parts.append("</div>")
+    parts.append("</div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
+
+
 inject_pr_banner_before_header(PR_BANNER_IMAGE_PATH, PR_BANNER_LINK)
 
 
@@ -440,10 +532,26 @@ st.markdown(
         border-radius: 8px;
         padding: 6px 10px;
     }
+    div.turf-banner-inline-mobile-only {
+        margin: 0 0 0.75rem 0;
+        padding: 0;
+        line-height: 0;
+        text-align: center;
+        background: #faf8f2;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    @media (min-width: 769px) {
+        div.turf-banner-inline-mobile-only {
+            display: none !important;
+        }
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
+
+render_mobile_banners_inline()
 
 st.markdown('<h1 style="text-align:center;">芝しごと・芝生病害画像診断AI</h1>', unsafe_allow_html=True)
 st.markdown('<p style="text-align:center;color:gray;">v1.0.1</p>', unsafe_allow_html=True)
