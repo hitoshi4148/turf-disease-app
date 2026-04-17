@@ -57,6 +57,12 @@ inject_google_analytics("G-FT1B3ZCT2B")
 
 PR_BANNER_IMAGE_PATH = "ui_images/banner_pr_size1.png"
 PR_BANNER_LINK = "https://www.turf-tools.jp/services-4"
+BLOG_BANNER_IMAGE_PATH = "ui_images/bloglink.png"
+YOUTUBE_BANNER_IMAGE_PATH = "ui_images/youtubelink.png"
+BLOG_BANNER_LINK = "https://www.turf-tools.jp/blog"
+YOUTUBE_BANNER_LINK = (
+    "https://www.youtube.com/channel/UCSRU0zk4Fj1ETWqMRlJDPJQ"
+)
 
 
 def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
@@ -67,11 +73,18 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
     if not b64:
         return
 
+    b64_blog = load_banner_base64(BLOG_BANNER_IMAGE_PATH) or ""
+    b64_youtube = load_banner_base64(YOUTUBE_BANNER_IMAGE_PATH) or ""
+
     banner_html = f"""
     <script>
       (function() {{
         try {{
           var doc = (window.parent && window.parent.document) || document;
+          var BLOG_B64 = {json.dumps(b64_blog)};
+          var YT_B64 = {json.dumps(b64_youtube)};
+          var BLOG_URL = {json.dumps(BLOG_BANNER_LINK)};
+          var YT_URL = {json.dumps(YOUTUBE_BANNER_LINK)};
 
           function fixedTopInsetPx() {{
             var selectors = [
@@ -117,7 +130,7 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
 
           var tries = 0;
           function tryInsert() {{
-            if (doc.getElementById("turf-pr-banner-wrap")) return;
+            if (doc.getElementById("turf-banner-stack")) return;
             var app = doc.querySelector("section.stApp");
             var headerEl =
               doc.querySelector('[data-testid="stHeader"]') ||
@@ -128,14 +141,22 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
               return;
             }}
 
-            var wrap = doc.createElement("div");
-            wrap.id = "turf-pr-banner-wrap";
-            wrap.setAttribute(
+            var stack = doc.createElement("div");
+            stack.id = "turf-banner-stack";
+            stack.setAttribute(
+              "style",
+              "margin:0;padding:0;line-height:0;display:flex;flex-direction:column;"
+              + "align-items:stretch;width:100%;box-sizing:border-box;"
+              + "overflow:visible;flex:0 0 auto;flex-shrink:0;min-height:min-content;"
+              + "position:relative;z-index:1;background:#faf8f2;"
+            );
+
+            var prRow = doc.createElement("div");
+            prRow.id = "turf-pr-banner-wrap";
+            prRow.setAttribute(
               "style",
               "margin:0;padding:0;line-height:0;text-align:center;background:#faf8f2;"
-              + "overflow:visible;flex:0 0 auto;flex-shrink:0;align-self:stretch;"
-              + "width:100%;box-sizing:border-box;min-height:min-content;"
-              + "position:relative;z-index:1;"
+              + "overflow:visible;width:100%;box-sizing:border-box;"
             );
 
             var a = doc.createElement("a");
@@ -152,27 +173,69 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
               "width:auto;height:auto;max-width:100%;display:block;margin:0 auto;"
               + "vertical-align:top;"
             );
-            img.onload = function() {{ applyBannerTopGap(wrap); }};
+            img.onload = function() {{ applyBannerTopGap(stack); }};
 
             a.appendChild(img);
-            wrap.appendChild(a);
+            prRow.appendChild(a);
+            stack.appendChild(prRow);
 
-            if (app) {{
-              app.insertBefore(wrap, app.firstChild);
-            }} else {{
-              mount.insertBefore(wrap, headerEl);
+            if (BLOG_B64 || YT_B64) {{
+              var sub = doc.createElement("div");
+              sub.id = "turf-sub-banners-wrap";
+              sub.setAttribute(
+                "style",
+                "display:flex;flex-direction:row;justify-content:center;align-items:flex-start;"
+                + "flex-wrap:wrap;gap:8px;width:100%;box-sizing:border-box;"
+                + "margin:0;padding:4px 8px 8px;line-height:0;background:#faf8f2;"
+              );
+
+              function addSmallBanner(href, b64data, altText) {{
+                if (!b64data) return;
+                var la = doc.createElement("a");
+                la.href = href;
+                la.target = "_blank";
+                la.rel = "noopener noreferrer";
+                la.setAttribute(
+                  "style",
+                  "display:block;line-height:0;margin:0;padding:0;flex:0 0 auto;"
+                );
+                var im = doc.createElement("img");
+                im.src = "data:image/png;base64," + b64data;
+                im.alt = altText;
+                im.setAttribute("width", "300");
+                im.setAttribute("height", "100");
+                im.setAttribute(
+                  "style",
+                  "width:300px;height:100px;object-fit:contain;display:block;"
+                  + "box-sizing:border-box;vertical-align:top;"
+                );
+                la.appendChild(im);
+                sub.appendChild(la);
+              }}
+
+              addSmallBanner(BLOG_URL, BLOG_B64, "芝管理技術ブログ");
+              addSmallBanner(YT_URL, YT_B64, "芝管理ノウハウ YouTube");
+              stack.appendChild(sub);
             }}
 
-            applyBannerTopGap(wrap);
+            if (app) {{
+              app.insertBefore(stack, app.firstChild);
+            }} else {{
+              mount.insertBefore(stack, headerEl);
+            }}
+
+            applyBannerTopGap(stack);
             requestAnimationFrame(function() {{
-              requestAnimationFrame(function() {{ applyBannerTopGap(wrap); }});
+              requestAnimationFrame(function() {{ applyBannerTopGap(stack); }});
             }});
 
             if (!doc.getElementById("turf-pr-banner-style")) {{
               var st = doc.createElement("style");
               st.id = "turf-pr-banner-style";
               st.textContent =
-                "#turf-pr-banner-wrap,#turf-pr-banner-wrap a,#turf-pr-banner-wrap img{{"
+                "#turf-banner-stack,#turf-pr-banner-wrap,#turf-pr-banner-wrap a,"
+                + "#turf-pr-banner-wrap img,#turf-sub-banners-wrap,"
+                + "#turf-sub-banners-wrap a,#turf-sub-banners-wrap img{{"
                 + "max-height:none!important;clip:auto!important;object-fit:contain;"
                 + "}}";
               doc.head.appendChild(st);
