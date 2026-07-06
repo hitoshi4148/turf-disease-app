@@ -179,6 +179,31 @@ streamlit run app.py
 - `app.py` : Streamlit アプリ本体
 - `train.py` : 単一モデル学習（MobileNetV3-Small）
 - `disease_info.json` : 病害説明データ
+- `export_onnx.py` : PyTorch → ONNX 変換（ポータル公開用）
+- `validate_onnx.py` : PyTorch / ONNX 推論照合
+
+---
+
+## ポータル公開用 ONNX エクスポート（tool-portal 連携）
+
+本番 UI は [`tool-portal`](https://github.com/hitoshi4148/tool-portal) の `/portal/diagnosis/` でブラウザ内推論します。  
+学習・変換はこのリポジトリ、公開物の配置は `tool-portal` 側です。
+
+```bash
+pip install onnx onnxscript onnxruntime
+python export_onnx.py
+python validate_onnx.py
+```
+
+`tool-portal/public/portal/diagnosis/` へコピーするファイル:
+
+- `model.onnx`
+- `class_names.json`
+- `disease_info.json`
+- `ui_images/`（撮影例・症状例）
+- `images/`（病害参考画像）
+
+学習用画像（`data_raw/` 等）は **tool-portal に含めない** でください。
 
 ---
 
