@@ -55,6 +55,42 @@ def inject_google_analytics(measurement_id: str) -> None:
 
 inject_google_analytics("G-FT1B3ZCT2B")
 
+
+def inject_adsense(client_id: str) -> None:
+    if st.session_state.get("_adsense_injected"):
+        return
+
+    adsense_html = f"""
+    <script>
+      (function() {{
+        try {{
+          var CLIENT = "{client_id}";
+          var w = window.parent || window;
+          var d = w.document;
+          if (!d || !d.head) return;
+
+          var existing = d.querySelector(
+            'script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]'
+          );
+          if (existing) return;
+
+          var s = d.createElement("script");
+          s.async = true;
+          s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + CLIENT;
+          s.crossOrigin = "anonymous";
+          d.head.appendChild(s);
+        }} catch (e) {{
+          // no-op
+        }}
+      }})();
+    </script>
+    """
+    components.html(adsense_html, height=0, width=0)
+    st.session_state["_adsense_injected"] = True
+
+
+inject_adsense("ca-pub-4778292115354884")
+
 PR_BANNER_IMAGE_PATH = "ui_images/banner_pr_size1.png"
 PR_BANNER_LINK = "https://www.turf-tools.jp/services-4"
 BLOG_BANNER_IMAGE_PATH = "ui_images/bloglink.png"
@@ -63,6 +99,18 @@ BLOG_BANNER_LINK = "https://www.turf-tools.jp/blog"
 YOUTUBE_BANNER_LINK = (
     "https://www.youtube.com/channel/UCSRU0zk4Fj1ETWqMRlJDPJQ"
 )
+SHIGOTO_APP_LINKS = [
+    ("ポータル", "https://www.turf-tools.jp/portal/"),
+    ("ターフプール", "https://turfpool.onrender.com/"),
+    ("楽RAC農薬ローテ", "https://www.turf-tools.jp/portal/rac/"),
+    ("施肥設計ナビ", "https://fertilization-design.onrender.com/"),
+    ("病害リスク予報", "https://www.turf-tools.jp/portal/risk/"),
+    ("AI質問箱", "https://turf-advisor.onrender.com/"),
+    ("ピンポイント天気で芝しごと", "https://www.turf-tools.jp/portal/spray/"),
+    ("積算温度追跡マップ", "https://turfmap.onrender.com/"),
+    ("温量指数気候区分マップ", "https://climate-map-x30t.onrender.com/"),
+    ("クレームサバイバル", "https://claim-survival.onrender.com/"),
+]
 
 _MOBILE_BANNER_MAX_WIDTH_PX = 768
 
@@ -255,7 +303,12 @@ def inject_pr_banner_before_header(image_path: str, link_url: str) -> None:
                 + "#turf-pr-banner-wrap img,#turf-sub-banners-wrap,"
                 + "#turf-sub-banners-wrap a,#turf-sub-banners-wrap img{{"
                 + "max-height:none!important;clip:auto!important;object-fit:contain;"
-                + "}}";
+                + "}}"
+                + "section.stApp{{overflow:auto!important;height:auto!important;min-height:100vh;}}"
+                + '[data-testid="stAppViewContainer"],.stAppViewContainer,.main{{'
+                + "flex:1 1 auto!important;min-height:0!important;overflow:auto!important;"
+                + "}}"
+                + ".main .block-container{{padding-bottom:6rem!important;}}";
               doc.head.appendChild(st);
             }}
             }}
@@ -522,6 +575,19 @@ st.markdown(
     .main .block-container {
         padding-left: 5rem;
         padding-right: 5rem;
+        padding-bottom: 6rem !important;
+    }
+    section.stApp {
+        overflow: auto !important;
+        height: auto !important;
+        min-height: 100vh;
+    }
+    [data-testid="stAppViewContainer"],
+    .stAppViewContainer,
+    .main {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow: auto !important;
     }
     div[role="radiogroup"] > label[data-baseweb="radio"] > div:first-child {
         border-color: #2e7d32 !important;
@@ -545,6 +611,59 @@ st.markdown(
         div.turf-banner-inline-mobile-only {
             display: none !important;
         }
+    }
+    .turf-site-footer {
+        text-align: center;
+        margin: 0.5rem 0 0;
+    }
+    .turf-site-footer .turf-disclaimer {
+        color: #666;
+        font-size: 0.85rem;
+        line-height: 1.6;
+        margin: 0 0 16px;
+    }
+    .turf-site-footer .turf-footer-app-links {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px 14px;
+        margin: 0 0 16px;
+        padding-top: 12px;
+        border-top: 1px solid #e5e7eb;
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+    .turf-site-footer .turf-footer-app-links a {
+        color: #1e40af !important;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .turf-site-footer .turf-footer-app-links a:hover {
+        text-decoration: underline;
+    }
+    .turf-site-footer .footer-gp-link {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        text-decoration: none !important;
+        color: #374151 !important;
+    }
+    .turf-site-footer .footer-gp-logo {
+        display: block;
+        width: 72px;
+        height: 72px;
+    }
+    .turf-site-footer .footer-gp-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #111827;
+    }
+    .turf-site-footer .turf-version-footer {
+        color: #9ca3af;
+        font-size: 0.8rem;
+        margin: 8px 0 0;
     }
     </style>
     """,
@@ -728,17 +847,34 @@ if banner_base64:
 else:
     st.link_button("バナー広告について", mailto_url)
 
+logo_b64 = load_banner_base64("ui_images/grow-and-progress-logo.png")
+footer_link_items = "".join(
+    f'<a href="{url}" target="_blank" rel="noopener noreferrer">{label}</a>'
+    for label, url in SHIGOTO_APP_LINKS
+)
+logo_html = ""
+if logo_b64:
+    logo_html = (
+        f'<img class="footer-gp-logo" src="data:image/png;base64,{logo_b64}" '
+        'alt="" width="72" height="72" />'
+    )
 st.markdown(
-    """
-    <div style="font-size:0.85rem; color:#666; line-height:1.5; margin-top:0.5rem;">
-    本アプリは意思決定支援ツールです。最終判断は現場状況と専門家確認を推奨します。<br>
-    - 撮影条件やデータ分布により診断精度は変動します。<br>
-    - 推論モデルには MobileNetV3-Small（単一モデル分類）を使用しています。<br>
-    - v1.0.1公開版はPCブラウザ推奨です（スマートフォン非対応）。
+    f"""
+    <div class="turf-site-footer">
+      <p class="turf-disclaimer">
+        本アプリは意思決定支援ツールです。最終判断は現場状況と専門家確認を推奨します。<br>
+        撮影条件やデータ分布により診断精度は変動します。<br>
+        推論モデル: MobileNetV3-Small（単一モデル分類）。PC推奨。スマートフォンでは動作が遅い場合があります。
+      </p>
+      <p class="turf-footer-app-links">{footer_link_items}</p>
+      <p class="footer-gp">
+        <a class="footer-gp-link" href="https://www.turf-tools.jp/" target="_blank" rel="noopener noreferrer">
+          {logo_html}
+          <span class="footer-gp-name">グロウアンドプログレス</span>
+        </a>
+      </p>
+      <p class="turf-version-footer">Version 1.0.1 ｜ 2026.03</p>
     </div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
-
-st.markdown("©2025 Growth and Progress")
-st.markdown("[グロウアンドプログレス](https://www.turf-tools.jp/)")
